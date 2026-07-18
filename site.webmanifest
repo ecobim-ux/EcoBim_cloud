@@ -1,0 +1,13 @@
+{
+  "name": "EcoBIM — BIM Coordination Studio",
+  "short_name": "EcoBIM",
+  "description": "BIM coordination studio delivering federated 3D models, clash detection, architectural BIM, interior design BIM, quantity takeoff and shop drawings.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FAF9F6",
+  "theme_color": "#0C0B11",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -1,0 +1,176 @@
+{
+  "meta": {
+    "title": "EcoBIM — BIM Coordination Studio | Model First. Build Once.",
+    "description": "EcoBIM is a BIM coordination studio delivering federated 3D models, clash detection, architectural BIM, interior design BIM, quantity takeoff and shop drawings at LOD 100-400.",
+    "keywords": "BIM coordination, 3D BIM modeling, clash detection, architectural BIM, interior design BIM, quantity takeoff, shop drawings, Revit, Navisworks, BIM execution plan",
+    "url": "https://ecobim.co/",
+    "email": "info@ecobim.co",
+    "schema_services": ["BIM Coordination", "Architectural Design & BIM", "3D BIM Modeling", "Clash Detection", "Interior Design BIM", "Quantity Takeoff", "Shop Drawings"]
+  },
+
+  "hero": {
+    "eyebrow": "BIM Coordination Studio",
+    "solution_line": "LOD 100–400 · BIM Coordination · BEP",
+    "title_line1": "Model first.",
+    "title_line2": "Build once.",
+    "description": "We build federated 3D models that catch conflicts before they reach site. Precise clash detection, quantity takeoff and shop drawings delivered at every LOD.",
+    "cta_primary": "Request estimate",
+    "cta_secondary": "Our services"
+  },
+
+  "hero_stats": [
+    { "value": "459K+",  "label": "Sq ft modeled",     "count": "459",   "suffix": "K+" },
+    { "value": "auto",   "label": "Clashes resolved",  "auto": "clashes" },
+    { "value": "42+",    "label": "Projects delivered", "count": "42",    "suffix": "+" },
+    { "value": "42+",    "label": "Projects delivered", "count": "42",    "suffix": "+" }
+  ],
+
+  "auto_calculate": {
+    "sqft_value": 459000,
+    "clashes_per_1000_sqft": 25,
+    "cost_per_clash_usd": 1200
+  },
+
+  "services": {
+    "pretitle": "01 — Services",
+    "title": "From model to fabrication.",
+    "description": "Our six core capabilities take your project from design intent to a coordinated, buildable set, fully documented and audit-ready.",
+    "items": [
+      "Architectural Design & BIM",
+      "3D BIM Modeling",
+      "Clash Detection & Coordination",
+      "Interior Design BIM Services",
+      "Quantity Takeoff & Estimation",
+      "Shop & Fabrication Drawings"
+    ],
+    "cta_text": "Not sure what you need? Send drawings or an IFC — we'll scope the model, LOD and deliverables within a business day.",
+    "cta_button": "Talk to us"
+  },
+
+  "process": {
+    "pretitle": "02 — Process",
+    "title": "A clean, predictable workflow.",
+    "description": "Our four-phase workflow turns your design intent into a conflict-free, fully documented model — on a timeline you can rely on.",
+    "total": 4,
+    "steps": [
+      { "title": "Kickoff & BEP",  "description": "We align on scope, LOD, naming conventions and a BIM Execution Plan. Every deliverable is agreed in writing before modeling starts." },
+      { "title": "Modeling",        "description": "We model each discipline in Revit, Civil 3D or Tekla against your confirmed design intent — architectural, structural and MEP in a federated file." },
+      { "title": "Coordination",    "description": "We run federation, clash tests and tracked BCF resolution in Navisworks until the model is fully clean. Every clash is logged with status and owner." },
+      { "title": "Delivery",        "description": "We hand over drawings, takeoffs and as-built models, documented and auditable. Ongoing model management is available post-delivery." }
+    ]
+  },
+
+  "stats_section": {
+    "pretitle": "Impact",
+    "title": "Numbers that matter on site.",
+    "description": "Every metric here comes directly from our project data — no estimates, no rounding.",
+    "items": [
+      { "value": "459",   "suffix": "K+", "display": "459K+", "label": "Square feet modeled" },
+      { "value": "auto",  "suffix": "",    "display": "—",     "label": "Clashes resolved",    "auto": "clashes" },
+      { "value": "42",    "suffix": "+",   "display": "42+",   "label": "Projects delivered" }
+    ]
+  },
+
+  "project_types": [
+    "Commercial",
+    "Residential",
+    "Healthcare",
+    "Industrial",
+    "Infrastructure",
+    "Education",
+    "Mixed-Use",
+    "Other"
+  ],
+
+  "projects": {
+    "pretitle": "03 — Work",
+    "title": "Coordinated on every kind of project.",
+    "description": "We've coordinated commercial towers, healthcare campuses, logistics warehouses and residential schemes — from concept to handover.",
+    "items": [
+      {
+        "name": "Velodrome Abu Dhabi",
+        "tag": "Sports · LOD 350",
+        "image": "images/Project 3/velodrome abu dhabi.webp",
+        "alt": "Velodrome Abu Dhabi BIM coordination"
+      },
+      {
+        "name": "Doha Port Cruise Terminal",
+        "tag": "Infrastructure · MEP",
+        "image": "images/Project 2/Doha_Port___Grand_Cruise_Terminal.webp",
+        "alt": "Doha Port Grand Cruise Terminal BIM coordination"
+      },
+      {
+        "name": "Sports Hotel Abu Dhabi",
+        "tag": "Hospitality · BIM Coordination",
+        "image": "images/Project 1/Sports Hotel Abu Dhabi.webp",
+        "alt": "Sports Hotel Abu Dhabi BIM coordination"
+      },
+      {
+        "name": "T2 Kempegowda Airport",
+        "tag": "Transport · LOD 350",
+        "image": "images/Project 5/T2_Kempegowda_International_Airport.webp",
+        "alt": "T2 Kempegowda International Airport BIM coordination"
+      },
+      {
+        "name": "Timor Leste Education Institute",
+        "tag": "Education · BIM Coordination",
+        "image": "images/Project 4/Timor Leste Education Institute.webp",
+        "alt": "Timor Leste Education Institute BIM coordination"
+      }
+    ]
+  },
+
+  "tools": [
+    { "name": "Revit",          "ext": ".rvt",       "category": "Modeling" },
+    { "name": "Navisworks",     "ext": ".nwf .nwd",  "category": "Coordination" },
+    { "name": "Civil 3D",       "ext": ".dwg",       "category": "Civil" },
+    { "name": "ACC / BIM 360",  "ext": ".bcf",       "category": "CDE" },
+    { "name": "AutoCAD",        "ext": ".dwg .dxf",  "category": "Drafting" },
+    { "name": "SketchUp",       "ext": ".skp",       "category": "Massing" }
+  ],
+
+  "standards": [
+    { "tag": "BEP",       "description": "A clear BIM Execution Plan agreed and issued on every engagement — scope, LOD and naming conventions locked before modeling starts." },
+    { "tag": "LOD 100–400", "description": "We model to the development level your project stage requires — every element carries the right geometry and data." },
+    { "tag": "IFC",       "description": "We deliver in open IFC format for interoperability across platforms — your model works in any BIM viewer or CDE." }
+  ],
+
+  "faq": [
+    {
+      "question": "What software do you deliver models in?",
+      "answer": "We model in Revit as our primary authoring tool and deliver in .rvt, .ifc, .nwd, .dwg or any format your workflow requires. All our federated models are run through Navisworks for clash coordination."
+    },
+    {
+      "question": "What LOD levels do you work to?",
+      "answer": "We work from LOD 100 concept massing through to LOD 400 fabrication-ready geometry. We agree the level in the BEP at kickoff and tie it to each discipline and project phase."
+    },
+    {
+      "question": "How long does a typical engagement take?",
+      "answer": "A single-discipline model takes 2–4 weeks. Multi-discipline coordination with clash resolution typically runs 4–8 weeks depending on building complexity and the number of revision cycles."
+    },
+    {
+      "question": "How are clashes detected and resolved?",
+      "answer": "We run automated clash tests in Navisworks against discipline-specific tolerances, export BCF issues, and hold weekly coordination meetings to track resolution status. Every clash gets an owner and a close-out date."
+    },
+    {
+      "question": "What happens when design changes arrive mid-project?",
+      "answer": "We track design changes through a formal change log. We assess the impact on LOD, schedule and clash status, issue a revised scope if needed, and update the model against the confirmed revision — no uncontrolled updates."
+    }
+  ],
+
+  "contact": {
+    "pretitle": "05 — Contact",
+    "title": "Let's scope your model.",
+    "description": "Drop us a message with your drawings or IFC file and we'll come back within one business day with a scope, timeline and fixed fee.",
+    "standards_line": "LOD 100–400 · BEP · IFC",
+    "response_time": "Within 1 business day"
+  },
+
+  "footer": {
+    "tagline": "We deliver BIM modeling & coordination for the construction and real-estate industries. Model first — build once.",
+    "copyright_year": "2026",
+    "standards_line": "LOD 100–400 · BEP · IFC Delivery"
+  },
+
+  "google_sheet_url": ""
+}

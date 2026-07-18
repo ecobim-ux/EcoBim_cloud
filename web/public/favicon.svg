@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="EcoBIM">
+  <rect width="32" height="32" rx="7" fill="#FAF9F6"/>
+  <rect x="7" y="7" width="8" height="8" rx="1.6" fill="#FF5949"/>
+  <rect x="17" y="7" width="8" height="8" rx="1.6" fill="#171717"/>
+  <rect x="7" y="17" width="8" height="8" rx="1.6" fill="#171717"/>
+  <rect x="17" y="17" width="8" height="8" rx="1.6" fill="#171717"/>
+</svg>
