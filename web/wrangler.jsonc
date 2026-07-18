@@ -27,9 +27,7 @@
 	"hyperdrive": [
 		{
 			"binding": "HYPERDRIVE",
-			// TODO: replace with the real Hyperdrive config ID from
-			// Workers & Pages -> Hyperdrive -> ecobim-db
-			"id": "REPLACE_WITH_HYPERDRIVE_ID"
+			"id": "727a512e2992437bb7dc2ab84b73332f"
 		}
 	]
 }
