@@ -104,4 +104,5 @@ That's it — form submissions will now appear in your Google Sheet. The form fa
 - Fonts: Inter, JetBrains Mono, Newsreader (Google Fonts CDN)
 - Animations: CSS transitions + IntersectionObserver
 - SEO: JSON-LD schema, Open Graph, Twitter Card, canonical URL, semantic HTML
-- Accessibility: ARIA labels, keyboard navigation, prefers-reduced-motion
+- Accessibility: ARIA labels, keyboard navigation, prefers-reduced-motion|
+t
