@@ -36,4 +36,11 @@ const nextConfig: NextConfig = {
 
 export default nextConfig;
 
-import('@opennextjs/cloudflare').then(m => m.initOpenNextCloudflareForDev());
+// Only simulate Cloudflare bindings (Hyperdrive, etc.) for the actual local
+// `next dev` server. This file is also evaluated by `next build` — both
+// locally and in Cloudflare's own CI when deploying — and that path must
+// behave like production, not attempt to emulate a local Hyperdrive/Postgres
+// connection that doesn't exist in that context.
+if (process.env.NODE_ENV === "development") {
+  import('@opennextjs/cloudflare').then(m => m.initOpenNextCloudflareForDev());
+}

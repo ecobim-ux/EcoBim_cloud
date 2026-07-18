@@ -2,28 +2,36 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CREDENTIALS, checkCredentials } from "@/lib/portal/auth";
+import { CREDENTIALS } from "@/lib/portal/auth";
 import { FloatingPaths } from "./FloatingPaths";
 
-export function LoginPage({ onLogin }: { onLogin: (role: string) => void }) {
+export function LoginPage({ onLogin }: { onLogin: (role: string, name: string) => void }) {
   const [uid, setUid] = useState("");
   const [pw, setPw] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const attempt = () => {
+  const attempt = async () => {
     setErr("");
     setLoading(true);
-    setTimeout(() => {
-      const role = checkCredentials(uid.trim(), pw);
-      if (role) {
-        onLogin(role);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ loginId: uid.trim(), password: pw }),
+      });
+      const data = (await res.json()) as { role?: string; name?: string; error?: string };
+      if (res.ok && data.role && data.name) {
+        onLogin(data.role, data.name);
       } else {
-        setErr("Incorrect ID or password. Please try again.");
+        setErr(data.error || "Incorrect ID or password. Please try again.");
       }
+    } catch {
+      setErr("Couldn't reach the server. Please try again.");
+    } finally {
       setLoading(false);
-    }, 600);
+    }
   };
 
   const onKey = (e: React.KeyboardEvent) => {

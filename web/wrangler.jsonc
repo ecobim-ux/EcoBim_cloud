@@ -23,5 +23,13 @@
 		// Enable image optimization
 		// see https://opennext.js.org/cloudflare/howtos/image
 		"binding": "IMAGES"
-	}
+	},
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			// TODO: replace with the real Hyperdrive config ID from
+			// Workers & Pages -> Hyperdrive -> ecobim-db
+			"id": "REPLACE_WITH_HYPERDRIVE_ID"
+		}
+	]
 }

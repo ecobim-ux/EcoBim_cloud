@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useToast } from "./ui/Toast";
 import { LoginPage } from "./login/LoginPage";
 import { EmployeeDashboard } from "./employee/EmployeeDashboard";
@@ -11,8 +11,21 @@ import { CustomCursor } from "./CustomCursor";
 
 export function PortalApp() {
   const [role, setRole] = useState<string | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [navTab, setNavTab] = useState<string | null>(null);
   const { show: showToast, ToastHost } = useToast();
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.json() as Promise<{ session: { role: string; name: string } | null }>)
+      .then((data) => {
+        if (data.session) setRole(data.session.role);
+      })
+      .catch(() => {
+        /* not logged in / API unreachable — stays on login page */
+      })
+      .finally(() => setCheckingSession(false));
+  }, []);
 
   const handleLogin = (r: string) => {
     setRole(r);
@@ -20,6 +33,9 @@ export function PortalApp() {
   };
 
   const back = () => {
+    fetch("/api/auth/logout", { method: "POST" }).catch(() => {
+      /* best-effort — clear client state regardless */
+    });
     setRole(null);
     setNavTab(null);
   };
@@ -29,6 +45,8 @@ export function PortalApp() {
       Skip to main content
     </a>
   );
+
+  if (checkingSession) return <div className="portal-root" />;
 
   return (
     <div className="portal-root">
