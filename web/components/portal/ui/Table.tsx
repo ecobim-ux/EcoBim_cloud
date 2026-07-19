@@ -1,12 +1,39 @@
 import type { ReactNode } from "react";
 
+/**
+ * Grid templates mix fixed px columns with `fr` columns (e.g.
+ * "90px 1.2fr 1.6fr 1fr 90px 110px 100px"). `minWidth: max-content` was
+ * tried first to stop narrow viewports from crushing columns, but that
+ * forces text-heavy `fr` columns (e.g. a full sentence in a Description
+ * column) to their *unwrapped* width — ballooning a single row past 2000px
+ * instead of wrapping text within a reasonable column. This instead gives
+ * each `fr` unit a sane floor (a normal readable column width) so the grid
+ * has a sensible minimum: text still wraps within each column, and the
+ * table only needs to scroll roughly as wide as it visually should.
+ */
+const FR_BASE_PX = 130;
+
+function resolveMinWidth(tpl: string): string {
+  const total = tpl
+    .trim()
+    .split(/\s+/)
+    .reduce((sum, token) => {
+      const px = token.match(/^([\d.]+)px$/);
+      if (px) return sum + parseFloat(px[1]);
+      const fr = token.match(/^([\d.]+)fr$/);
+      if (fr) return sum + parseFloat(fr[1]) * FR_BASE_PX;
+      return sum;
+    }, 0);
+  return `${total}px`;
+}
+
 export function THead({ cols, tpl }: { cols: string[]; tpl: string }) {
   return (
     <div
       style={{
         display: "grid",
         gridTemplateColumns: tpl,
-        minWidth: "max-content",
+        minWidth: resolveMinWidth(tpl),
         background: "#F6F4EF",
         borderBottom: "1px solid #E5E2DA",
         padding: "10px 20px",
@@ -38,7 +65,7 @@ export function TRow({ tpl, children, onClick }: TRowProps) {
       style={{
         display: "grid",
         gridTemplateColumns: tpl,
-        minWidth: "max-content",
+        minWidth: resolveMinWidth(tpl),
         padding: "13px 20px",
         borderBottom: "1px solid #F2F0EA",
         alignItems: "center",
