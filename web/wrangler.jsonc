@@ -11,6 +11,15 @@
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
 	},
+	// Declared explicitly to match the custom domain already attached via the
+	// Cloudflare dashboard — without this, a real `wrangler deploy` would see
+	// it as drift and strip the ecobim.co custom domain from the Worker.
+	"routes": [
+		{
+			"pattern": "ecobim.co",
+			"custom_domain": true
+		}
+	],
 	"services": [
 		{
 			// Self-reference service binding, the service name must match the worker name
