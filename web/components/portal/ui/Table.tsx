@@ -6,6 +6,7 @@ export function THead({ cols, tpl }: { cols: string[]; tpl: string }) {
       style={{
         display: "grid",
         gridTemplateColumns: tpl,
+        minWidth: "max-content",
         background: "#F6F4EF",
         borderBottom: "1px solid #E5E2DA",
         padding: "10px 20px",
@@ -37,6 +38,7 @@ export function TRow({ tpl, children, onClick }: TRowProps) {
       style={{
         display: "grid",
         gridTemplateColumns: tpl,
+        minWidth: "max-content",
         padding: "13px 20px",
         borderBottom: "1px solid #F2F0EA",
         alignItems: "center",
@@ -60,7 +62,11 @@ export function TableWrap({ children }: { children?: ReactNode }) {
         overflow: "hidden",
       }}
     >
-      {children}
+      {/* Tables use fixed-px + fr grid columns sized for desktop; on narrow
+          screens those columns were being crushed instead of respected
+          (columns cut off, text wrapping into unreadably tall cells).
+          Scrolling horizontally here preserves the intended column widths. */}
+      <div style={{ overflowX: "auto" }}>{children}</div>
     </div>
   );
 }
