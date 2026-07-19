@@ -38,9 +38,9 @@
 			"binding": "HYPERDRIVE",
 			"id": "727a512e2992437bb7dc2ab84b73332f"
 			// localConnectionString intentionally omitted — this file is public.
-			// The equivalent value is set as a secret build variable in the
-			// Cloudflare dashboard: CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE
-			// (see db/README.md for why this is needed during deploy).
+			// The equivalent value is injected at build time by
+			// scripts/patch-wrangler-hyperdrive.cjs from the HYPERDRIVE_LOCAL_DB_URL
+			// build variable (see db/README.md for why this is needed during deploy).
 		}
 	]
 }

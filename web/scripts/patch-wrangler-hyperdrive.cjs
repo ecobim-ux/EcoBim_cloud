@@ -13,7 +13,11 @@
 const fs = require("fs");
 const path = require("path");
 
-const CONN = process.env.CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE;
+// Cloudflare's "Build variables" panel rejects names starting with
+// CLOUDFLARE_ or WRANGLER_ (reserved prefixes), so this uses a plain name
+// instead of Wrangler's own magic env var name — it's fine, since this
+// script (not Wrangler) is the one reading it.
+const CONN = process.env.HYPERDRIVE_LOCAL_DB_URL;
 if (!CONN) {
   console.log("[patch-wrangler-hyperdrive] env var not set, skipping (fine for normal local installs)");
   process.exit(0);
