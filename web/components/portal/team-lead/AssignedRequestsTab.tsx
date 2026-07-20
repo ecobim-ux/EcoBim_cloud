@@ -1,44 +1,55 @@
 "use client";
 
-import { useState } from "react";
-import { TEAM } from "@/lib/portal/data";
-import { addAssignedTask, addNotif, readRequests, writeRequests, type EstimateRequest } from "@/lib/portal/storage";
+import { useCallback, useEffect, useState } from "react";
+import { usePeople } from "../PeopleProvider";
+import { createTask } from "@/lib/portal/tasks";
+import { delegateLeadToEmployee, fetchLeads, type ApiLead } from "@/lib/portal/leads";
+import { sendNotification } from "@/lib/portal/notifications";
 import { ML, LEAD_EMAIL, LEAD_NAME } from "@/lib/portal/mail";
 import { Btn } from "../ui/Btn";
 import { ReqBadge } from "../shared/ReqBadge";
+import { notify } from "../ui/Toast";
 
 export function AssignedRequestsTab() {
-  const [reqs, setReqs] = useState<EstimateRequest[]>(() => readRequests().filter((r) => r.assignedTo === "Pranav R."));
+  const [reqs, setReqs] = useState<ApiLead[]>([]);
   const [assignEmp, setAssignEmp] = useState<Record<string, string>>({});
   const [note, setNote] = useState<Record<string, string>>({});
-  const [done, setDone] = useState<Record<string, boolean>>({});
+  const { people } = usePeople();
+  const employees = people.filter((p) => p.position === "employee");
 
-  const assignToEmployee = (id: string) => {
-    const emp = assignEmp[id] || TEAM[0].name;
-    const req = reqs.find((r) => r.id === id) || ({} as EstimateRequest);
-    const all = readRequests();
-    const updated = all.map((r) => (r.id === id ? { ...r, assignedEmployee: emp } : r));
-    writeRequests(updated);
-    setReqs(updated.filter((r) => r.assignedTo === "Pranav R."));
-    setDone((p) => ({ ...p, [id]: true }));
-    addAssignedTask({
-      id: "AT" + Date.now(),
-      assignedTo: emp,
-      task: `Review estimate: ${req.company || "Client"} — ${(req.services || []).join(", ")}`,
-      del: "RFI",
-      lod: "LOD 300",
-      phase: "CD",
-      status: "Not Started",
-      pct: 0,
-      due: "TBD",
-      delay: null,
+  const refresh = useCallback(() => {
+    fetchLeads().then(setReqs);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const assignToEmployee = async (id: string) => {
+    const loginId = assignEmp[id] || employees[0]?.loginId;
+    const emp = employees.find((p) => p.loginId === loginId);
+    if (!loginId || !emp) return;
+    const req = reqs.find((r) => r.id === id);
+    const result = await delegateLeadToEmployee(id, loginId);
+    if (!result.ok) {
+      notify(result.error || "Couldn't assign that request.", "error");
+      return;
+    }
+    const taskResult = await createTask({
+      title: `Review estimate: ${req?.company || "Client"} — ${(req?.services || []).join(", ")}`,
+      assigneeLoginId: emp.loginId,
     });
-    addNotif({
-      role: "employee",
+    if (!taskResult.ok) {
+      notify(taskResult.error || "Couldn't create the follow-up task.", "error");
+      return;
+    }
+    sendNotification({
+      recipientLoginIds: [emp.loginId],
       title: "New task assigned by Team Lead",
-      body: `Pranav R. assigned: Review ${req.company || "client"} estimate — ${(req.services || []).join(", ")}.`,
+      body: `Pranav R. assigned: Review ${req?.company || "client"} estimate — ${(req?.services || []).join(", ")}.`,
       tab: "My Tasks",
     });
+    refresh();
   };
 
   return (
@@ -61,7 +72,7 @@ export function AssignedRequestsTab() {
                   {r.name} <span style={{ fontWeight: 400, color: "#5C594F" }}>— {r.company}</span>
                 </div>
                 <div style={{ fontSize: 12, color: "#8A867C", marginTop: 2, fontFamily: "var(--font-instrument-sans),sans-serif" }}>
-                  {r.id} · {r.date} · {r.role}
+                  {r.code} · {r.date} · {r.role}
                 </div>
               </div>
               <ReqBadge s={r.status} />
@@ -79,31 +90,11 @@ export function AssignedRequestsTab() {
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ color: "#1A7A4A", fontSize: 13, fontWeight: 500 }}>✓ Task assigned to {r.assignedEmployee}</div>
                 {(() => {
-                  const emp = TEAM.find((t) => t.name === r.assignedEmployee);
+                  const emp = employees.find((t) => t.name === r.assignedEmployee);
                   return emp ? (
                     <a
                       href={ML(
-                        emp.email,
-                        `Task Assignment: ${r.company} Estimate`,
-                        `Hi ${emp.name.split(" ")[0]},\n\nYou have a new task assigned by ${LEAD_NAME}.\n\nClient: ${r.name} (${r.company})\nServices: ${(r.services || []).join(", ")}\nScale: ${r.scale || "TBD"}\n\nBrief: ${r.details || "See portal for full details"}\n\nPlease log into the portal to review and action.\n\nBest,\n${LEAD_NAME}\n${LEAD_EMAIL}`,
-                      )}
-                      style={{ fontSize: 12, color: "#171717", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 500 }}
-                    >
-                      📧 Notify {emp.name.split(" ")[0]} by email ↗
-                    </a>
-                  ) : null;
-                })()}
-              </div>
-            ) : done[r.id] ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ color: "#1A7A4A", fontSize: 13, fontWeight: 500 }}>✓ Assigned to {assignEmp[r.id] || TEAM[0].name}</div>
-                {(() => {
-                  const n = assignEmp[r.id] || TEAM[0].name;
-                  const emp = TEAM.find((t) => t.name === n);
-                  return emp ? (
-                    <a
-                      href={ML(
-                        emp.email,
+                        emp.email || "",
                         `Task Assignment: ${r.company} Estimate`,
                         `Hi ${emp.name.split(" ")[0]},\n\nYou have a new task assigned by ${LEAD_NAME}.\n\nClient: ${r.name} (${r.company})\nServices: ${(r.services || []).join(", ")}\nScale: ${r.scale || "TBD"}\n\nBrief: ${r.details || "See portal for full details"}\n\nPlease log into the portal to review and action.\n\nBest,\n${LEAD_NAME}\n${LEAD_EMAIL}`,
                       )}
@@ -119,12 +110,14 @@ export function AssignedRequestsTab() {
                 <div style={{ fontSize: 12, fontWeight: 600, color: "#5C594F" }}>Assign to employee</div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <select
-                    value={assignEmp[r.id] || TEAM[0].name}
+                    value={assignEmp[r.id] || employees[0]?.loginId || ""}
                     onChange={(e) => setAssignEmp((p) => ({ ...p, [r.id]: e.target.value }))}
                     style={{ flex: 1, padding: "8px 10px", border: "1px solid #E5E2DA", borderRadius: 12, fontSize: 13, background: "#F6F4EF", color: "#171717" }}
                   >
-                    {TEAM.map((t) => (
-                      <option key={t.id}>{t.name}</option>
+                    {employees.map((t) => (
+                      <option key={t.loginId} value={t.loginId}>
+                        {t.name}
+                      </option>
                     ))}
                   </select>
                   <Btn v="p" xs={{ fontSize: 12, padding: "8px 16px" }} onClick={() => assignToEmployee(r.id)}>

@@ -1,30 +1,47 @@
 "use client";
 
-import { useState } from "react";
-import { readPeople, readRequests, writeRequests, type EstimateRequest } from "@/lib/portal/storage";
+import { useCallback, useEffect, useState } from "react";
+import { usePeople } from "../PeopleProvider";
+import { assignLeadToTeamLead, fetchLeads, markLeadContacted, type ApiLead } from "@/lib/portal/leads";
 import { CO_EMAIL, LEAD_EMAIL, LEAD_NAME, ML } from "@/lib/portal/mail";
 import { Avi } from "../ui/Avi";
 import { Btn } from "../ui/Btn";
 import { ReqBadge } from "../shared/ReqBadge";
+import { notify } from "../ui/Toast";
 
 export function EstimateRequestsTab() {
-  const [reqs, setReqs] = useState<EstimateRequest[]>(readRequests);
+  const [reqs, setReqs] = useState<ApiLead[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [assignLead, setAssignLead] = useState<Record<string, string>>({});
+  const { people } = usePeople();
+  const teamLeads = people.filter((p) => p.position === "teamlead");
 
-  const refresh = () => setReqs(readRequests());
+  const refresh = useCallback(() => {
+    fetchLeads().then(setReqs);
+  }, []);
 
-  const markContacted = (id: string) => {
-    const updated = reqs.map((r) => (r.id === id ? { ...r, status: "Contacted" } : r));
-    setReqs(updated);
-    writeRequests(updated);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const markContacted = async (id: string) => {
+    const result = await markLeadContacted(id);
+    if (!result.ok) {
+      notify(result.error || "Couldn't update that request.", "error");
+      return;
+    }
+    refresh();
   };
 
-  const assignToLead = (id: string) => {
-    const lead = assignLead[id] || "Pranav R.";
-    const updated = reqs.map((r) => (r.id === id ? { ...r, status: "Assigned", assignedTo: lead } : r));
-    setReqs(updated);
-    writeRequests(updated);
+  const assignToLead = async (id: string) => {
+    const loginId = assignLead[id] || teamLeads[0]?.loginId;
+    if (!loginId) return;
+    const result = await assignLeadToTeamLead(id, loginId);
+    if (!result.ok) {
+      notify(result.error || "Couldn't assign that request.", "error");
+      return;
+    }
+    refresh();
   };
 
   const newCount = reqs.filter((r) => r.status === "New").length;
@@ -69,7 +86,7 @@ export function EstimateRequestsTab() {
                   {r.name} <span style={{ fontWeight: 400, color: "#5C594F" }}>— {r.company}</span>
                 </div>
                 <div style={{ fontSize: 12, color: "#8A867C", marginTop: 2, fontFamily: "var(--font-instrument-sans),sans-serif" }}>
-                  {r.id} · {r.date} · {r.role}
+                  {r.code} · {r.date} · {r.role}
                 </div>
               </div>
             </div>
@@ -118,7 +135,7 @@ export function EstimateRequestsTab() {
                         <a
                           href={ML(
                             r.email,
-                            `Re: Your BIM Estimate Request [${r.id}]`,
+                            `Re: Your BIM Estimate Request [${r.code}]`,
                             `Dear ${r.name},\n\nThank you for reaching out to EcoBIM.\n\nWe have reviewed your request for ${(r.services || []).join(", ")} at ${r.company} and would like to discuss further.\n\nPlease let us know a convenient time to connect.\n\nBest regards,\nEcoBIM Team\n${CO_EMAIL}`,
                           )}
                           style={{ fontSize: 13, color: "#171717", textDecoration: "none", fontWeight: 500 }}
@@ -141,7 +158,7 @@ export function EstimateRequestsTab() {
                           r.email
                             ? ML(
                                 r.email,
-                                `Initial Contact — Your BIM Request [${r.id}]`,
+                                `Initial Contact — Your BIM Request [${r.code}]`,
                                 `Dear ${r.name},\n\nThank you for your interest in EcoBIM's services.\n\nWe received your estimate request for ${r.company} and our team is reviewing the details. We will be in touch shortly.\n\nBest regards,\nEcoBIM Team\n${CO_EMAIL}`,
                               )
                             : "#"
@@ -156,18 +173,15 @@ export function EstimateRequestsTab() {
                     {r.status !== "Assigned" && (
                       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                         <select
-                          value={assignLead[r.id] || "Pranav R."}
+                          value={assignLead[r.id] || teamLeads[0]?.loginId || ""}
                           onChange={(e) => setAssignLead((p) => ({ ...p, [r.id]: e.target.value }))}
                           style={{ flex: 1, padding: "7px 10px", border: "1px solid #E5E2DA", borderRadius: 12, fontSize: 12, background: "#F6F4EF", color: "#171717" }}
                         >
-                          {readPeople()
-                            .filter((p) => p.position === "teamlead")
-                            .map((p) => p.name)
-                            .concat(["Pranav R."])
-                            .filter((v, i, a) => a.indexOf(v) === i)
-                            .map((l) => (
-                              <option key={l}>{l}</option>
-                            ))}
+                          {teamLeads.map((p) => (
+                            <option key={p.loginId} value={p.loginId}>
+                              {p.name}
+                            </option>
+                          ))}
                         </select>
                         <Btn v="p" xs={{ fontSize: 12, padding: "7px 14px" }} onClick={() => assignToLead(r.id)}>
                           Assign Lead →
@@ -183,7 +197,7 @@ export function EstimateRequestsTab() {
                         <a
                           href={ML(
                             LEAD_EMAIL,
-                            `Project Assigned: ${r.company} [${r.id}]`,
+                            `Project Assigned: ${r.company} [${r.code}]`,
                             `Hi ${LEAD_NAME},\n\nYou have been assigned:\n\nClient: ${r.name} (${r.company})\nRole: ${r.role}\nScale: ${r.scale || "TBD"}\nServices: ${(r.services || []).join(", ")}\n\nDetails: ${r.details || "See portal"}\n\nPlease log in and assign to an employee.\n\nRegards, Admin\n${CO_EMAIL}`,
                           )}
                           style={{ fontSize: 12, color: "#171717", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 500 }}

@@ -1,11 +1,10 @@
 "use client";
 
-import { TEAM } from "@/lib/portal/data";
-import { computeProductivity } from "@/lib/portal/productivity";
+import type { ApiTask } from "@/app/api/tasks/route";
 import { ProductivityView } from "../ui/ProductivityView";
+import { computeProductivityFromTasks } from "@/lib/portal/productivity";
 
-export function ProductivityTab() {
-  const member = TEAM.find((t) => t.name === "Arjun Mehta")!;
-  const data = computeProductivity(member);
+export function ProductivityTab({ tasks }: { tasks: ApiTask[] }) {
+  const data = computeProductivityFromTasks(tasks);
   return <ProductivityView data={data} />;
 }

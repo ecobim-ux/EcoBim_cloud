@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { addNotif, addRaisedIssue, POS_LABEL, readPeople, type RaisedIssue } from "@/lib/portal/storage";
-import { todayStr } from "@/lib/portal/helpers";
+import { useEffect, useState } from "react";
+import { POS_LABEL } from "@/lib/portal/people";
+import { usePeople } from "../PeopleProvider";
+import { raiseIssue } from "@/lib/portal/issues";
+import { sendNotification } from "@/lib/portal/notifications";
 import { fldS, labS } from "@/lib/portal/style-tokens";
 import { SevColor } from "../ui/Badge";
 import { useModalA11y } from "../ui/useModalA11y";
@@ -15,38 +17,45 @@ interface RaiseIssueModalProps {
   onClose: () => void;
 }
 
+interface DoneState {
+  title: string;
+  to: string;
+  sev: string;
+}
+
 export function RaiseIssueModal({ userName, onClose }: RaiseIssueModalProps) {
-  const people = readPeople().filter((p) => p.name !== userName && p.position !== "client");
-  const [to, setTo] = useState(people[0] ? people[0].id : "");
+  const { people: allPeople } = usePeople();
+  const people = allPeople.filter((p) => p.name !== userName && p.position !== "client");
+  const [to, setTo] = useState("");
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
   const [sev, setSev] = useState("Medium");
-  const [done, setDone] = useState<RaisedIssue | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<DoneState | null>(null);
   const dialogRef = useModalA11y(onClose);
 
-  const submit = () => {
+  useEffect(() => {
+    if (!to && people.length > 0) setTo(people[0].partyId);
+  }, [people, to]);
+
+  const submit = async () => {
     if (!title.trim() || !desc.trim() || !to) return;
-    const rec = people.find((p) => p.id === to);
-    const iss: RaisedIssue = {
-      id: "ISS-" + String(Date.now()).slice(-3),
-      title: title.trim(),
-      by: userName,
-      to: rec ? rec.name : "",
-      toRole: rec ? rec.position : "",
-      date: todayStr(),
-      desc: desc.trim(),
-      sev,
-      status: "Pending",
-    };
-    addRaisedIssue(iss);
-    if (rec)
-      addNotif({
-        role: rec.position,
-        title: "⚠ New issue raised",
-        body: userName + ' raised "' + iss.title + '" (' + sev + " priority). " + iss.desc,
-        tab: rec.position === "admin" ? "Team Management" : rec.position === "employee" ? "RFIs" : "Issues",
-      });
-    setDone(iss);
+    const rec = people.find((p) => p.partyId === to);
+    if (!rec) return;
+    setBusy(true);
+    const result = await raiseIssue({ title: title.trim(), description: desc.trim(), severity: sev, recipientLoginId: rec.loginId });
+    setBusy(false);
+    if (!result.ok) {
+      notify(result.error || "Couldn't raise that issue.", "error");
+      return;
+    }
+    sendNotification({
+      recipientLoginIds: [rec.loginId],
+      title: "⚠ New issue raised",
+      body: userName + ' raised "' + title.trim() + '" (' + sev + " priority). " + desc.trim(),
+      tab: rec.position === "admin" ? "Team Management" : rec.position === "employee" ? "RFIs" : "Issues",
+    });
+    setDone({ title: title.trim(), to: rec.name, sev });
     notify("Issue raised and routed", "success");
   };
 
@@ -96,7 +105,7 @@ export function RaiseIssueModal({ userName, onClose }: RaiseIssueModalProps) {
                   <span style={labS}>Send to</span>
                   <select style={fldS} value={to} onChange={(e) => setTo(e.target.value)}>
                     {people.map((p) => (
-                      <option key={p.id} value={p.id}>
+                      <option key={p.partyId} value={p.partyId}>
                         {p.name} — {POS_LABEL[p.position] || p.position}
                       </option>
                     ))}
@@ -130,8 +139,8 @@ export function RaiseIssueModal({ userName, onClose }: RaiseIssueModalProps) {
                 </button>
                 <button
                   onClick={submit}
-                  disabled={!title.trim() || !desc.trim() || !to}
-                  style={{ display: "inline-flex", alignItems: "center", gap: 8, background: !title.trim() || !desc.trim() || !to ? "#BDBAB2" : "#C0392B", color: "#fff", border: "none", borderRadius: 12, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: !title.trim() || !desc.trim() || !to ? "not-allowed" : "pointer" }}
+                  disabled={busy || !title.trim() || !desc.trim() || !to}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 8, background: busy || !title.trim() || !desc.trim() || !to ? "#BDBAB2" : "#C0392B", color: "#fff", border: "none", borderRadius: 12, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: busy || !title.trim() || !desc.trim() || !to ? "not-allowed" : "pointer" }}
                 >
                   <WarnIcon size={14} /> Submit issue
                 </button>
@@ -141,10 +150,6 @@ export function RaiseIssueModal({ userName, onClose }: RaiseIssueModalProps) {
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ fontSize: 17, fontWeight: 600 }}>{done.title}</div>
               <div style={{ background: "#fff", border: "1px solid #E5E2DA", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 9 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: "#8A867C" }}>ID</span>
-                  <span style={{ fontWeight: 500 }}>{done.id}</span>
-                </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
                   <span style={{ color: "#8A867C" }}>Sent to</span>
                   <span style={{ fontWeight: 500 }}>{done.to}</span>

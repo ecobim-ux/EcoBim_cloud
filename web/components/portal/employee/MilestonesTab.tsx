@@ -1,30 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { MILESTONES, MY_TASKS, PROJECTS, type MyTask } from "@/lib/portal/data";
-import { readAssignedTasks } from "@/lib/portal/storage";
+import { useEffect, useState } from "react";
+import type { ApiTask } from "@/app/api/tasks/route";
+import { fetchMilestones, type ApiMilestone } from "@/lib/portal/milestones";
+import { fetchProjects, type ApiProject } from "@/lib/portal/projects";
 import { subPill } from "@/lib/portal/style-tokens";
 import { Badge } from "../ui/Badge";
 import { PBar } from "../ui/PBar";
 import { PhasePill } from "../ui/icons";
 
-const ETASK_KEY = "bimco_emp_task_state";
-
-function readETask(): Record<string, { status?: string }> {
-  try {
-    return JSON.parse(localStorage.getItem(ETASK_KEY) || "{}");
-  } catch {
-    return {};
-  }
-}
-
-function MilestoneTimeline() {
+function MilestoneTimeline({ milestones }: { milestones: ApiMilestone[] }) {
   return (
     <div style={{ paddingLeft: 12 }}>
-      {MILESTONES.map((m, i) => {
-        const isLast = i === MILESTONES.length - 1;
+      {milestones.map((m, i) => {
+        const isLast = i === milestones.length - 1;
         return (
-          <div key={i} style={{ display: "flex", gap: 16, paddingBottom: isLast ? 0 : 8 }}>
+          <div key={m.id} style={{ display: "flex", gap: 16, paddingBottom: isLast ? 0 : 8 }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
               <div
                 style={{
@@ -62,19 +53,15 @@ function MilestoneTimeline() {
   );
 }
 
-export function MilestonesTab() {
+export function MilestonesTab({ tasks }: { tasks: ApiTask[] }) {
   const [view, setView] = useState("Daily");
-  const state = readETask();
-  const assigned = readAssignedTasks().filter((t) => t.assignedTo === "Arjun Mehta") as unknown as MyTask[];
-  const all = [...MY_TASKS, ...assigned].map((t) => {
-    const s = state[t.id as string] || {};
-    return {
-      ...t,
-      status: s.status || (t as { status?: string }).status,
-      today: (t as { today?: boolean }).today !== undefined ? (t as { today?: boolean }).today : true,
-    };
-  });
-  const todayTasks = all.filter((t) => t.today);
+  const [milestones, setMilestones] = useState<ApiMilestone[]>([]);
+  const [projects, setProjects] = useState<ApiProject[]>([]);
+  useEffect(() => {
+    fetchMilestones().then(setMilestones);
+    fetchProjects().then(setProjects);
+  }, []);
+  const todayTasks = tasks.filter((t) => t.today);
   const doneCount = todayTasks.filter((t) => t.status === "Completed").length;
 
   return (
@@ -138,22 +125,28 @@ export function MilestonesTab() {
       ) : (
         <div>
           <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>Project progress</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 28 }}>
-            {PROJECTS.map((p) => (
-              <div key={p.id} style={{ background: "#fff", borderRadius: 12, border: "1px solid #E5E2DA", padding: "16px 20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{p.name}</div>
-                  <PhasePill p={p.phase} />
+          {projects.length === 0 ? (
+            <div style={{ background: "#fff", borderRadius: 12, border: "1px dashed #E5E2DA", padding: "28px", textAlign: "center", color: "#8A867C", fontSize: 13, marginBottom: 28 }}>
+              No projects yet.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 28 }}>
+              {projects.map((p) => (
+                <div key={p.id} style={{ background: "#fff", borderRadius: 12, border: "1px solid #E5E2DA", padding: "16px 20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>{p.name}</div>
+                    {p.phaseCode && <PhasePill p={p.phaseCode} />}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+                    <PBar pct={p.progress} label={p.name} />
+                    <span style={{ fontSize: 13, fontWeight: 600, flexShrink: 0 }}>{p.progress}%</span>
+                  </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
-                  <PBar pct={p.progress} label={p.name} />
-                  <span style={{ fontSize: 13, fontWeight: 600, flexShrink: 0 }}>{p.progress}%</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>Milestone status — Dubai Marina Tower</div>
-          <MilestoneTimeline />
+              ))}
+            </div>
+          )}
+          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>Milestone status{projects[0] ? " — " + projects[0].name : ""}</div>
+          <MilestoneTimeline milestones={milestones} />
         </div>
       )}
     </div>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { addNotif } from "@/lib/portal/storage";
+import { usePeople } from "../PeopleProvider";
+import { sendNotification } from "@/lib/portal/notifications";
 import { fldS, labS } from "@/lib/portal/style-tokens";
 import { useModalA11y } from "../ui/useModalA11y";
 import { notify } from "../ui/Toast";
@@ -12,6 +13,7 @@ interface PingLeadModalProps {
 }
 
 export function PingLeadModal({ userName, onClose }: PingLeadModalProps) {
+  const { people } = usePeople();
   const [subject, setSubject] = useState("");
   const [desc, setDesc] = useState("");
   const [sent, setSent] = useState(false);
@@ -19,8 +21,8 @@ export function PingLeadModal({ userName, onClose }: PingLeadModalProps) {
 
   const submit = () => {
     if (!subject.trim() || !desc.trim()) return;
-    addNotif({
-      role: "teamlead",
+    sendNotification({
+      recipientLoginIds: [people.find((p) => p.position === "teamlead")?.loginId],
       title: subject.trim(),
       body: userName + " pinged you — " + desc.trim(),
       tab: "Overview",

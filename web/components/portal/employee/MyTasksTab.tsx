@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { MY_TASKS, type MyTask } from "@/lib/portal/data";
-import { addNotif, readAssignedTasks, readETask, updateAssignedTask, writeETask, type ETaskState } from "@/lib/portal/storage";
-import { todayStr } from "@/lib/portal/helpers";
+import type { ApiTask } from "@/app/api/tasks/route";
+import { usePeople } from "../PeopleProvider";
+import { sendNotification } from "@/lib/portal/notifications";
 import { Badge } from "../ui/Badge";
 import { Btn } from "../ui/Btn";
 import { DelIcon } from "../ui/icons";
@@ -26,38 +26,19 @@ function TaskMeta({ label, value }: { label: string; value: ReactNode }) {
 }
 
 interface MyTasksTabProps {
-  tasks?: MyTask[];
-  onChange?: () => void;
+  tasks: ApiTask[];
+  userName: string;
+  onRefetch: () => void;
 }
 
-export function MyTasksTab({ tasks = MY_TASKS, onChange }: MyTasksTabProps) {
-  const [state, setState] = useState(readETask);
+export function MyTasksTab({ tasks, userName, onRefetch }: MyTasksTabProps) {
+  const { people } = usePeople();
   const [hrs, setHrs] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [ping, setPing] = useState(false);
   const [flash, setFlash] = useState("");
 
-  const merged = tasks.map((t) => {
-    const s = state[t.id] || {};
-    const records = s.records || [];
-    const logged = records.reduce((a, r) => a + (+r.hours || 0), 0);
-    return {
-      ...t,
-      priority: t.priority || "Medium",
-      est: t.est || 8,
-      del: t.del || "Task",
-      lod: t.lod || "—",
-      phase: t.phase || "CD",
-      assignedTo: t.assignedTo || "Arjun Mehta",
-      by: t.by || "—",
-      today: t.today !== undefined ? t.today : true,
-      logged,
-      records,
-      status: s.status || t.status,
-      completedOn: s.completedOn,
-    };
-  });
-
-  const active = merged
+  const active = [...tasks]
     .filter((t) => t.status !== "Completed")
     .sort((a, b) => {
       const at = a.today ? 0 : 1;
@@ -65,42 +46,65 @@ export function MyTasksTab({ tasks = MY_TASKS, onChange }: MyTasksTabProps) {
       if (at !== bt) return at - bt;
       return (PRI_RANK[a.priority] ?? 1) - (PRI_RANK[b.priority] ?? 1);
     });
-  const completed = merged.filter((t) => t.status === "Completed");
+  const completed = tasks.filter((t) => t.status === "Completed");
 
-  const persist = (next: Record<string, ETaskState>) => {
-    setState(next);
-    writeETask(next);
-    if (onChange) onChange();
-  };
-
-  const logHours = (id: string) => {
+  const logHours = async (id: string) => {
     const v = parseFloat(hrs[id]);
     if (!v || v <= 0) return;
-    const cur = state[id] || {};
-    persist({
-      ...state,
-      [id]: { ...cur, records: [...(cur.records || []), { date: todayStr(), hours: v }] },
-    });
-    setHrs((p) => ({ ...p, [id]: "" }));
-    setFlash("✓ Logged " + v + "h");
-    notify("Logged " + v + "h on this task", "success");
-    setTimeout(() => setFlash(""), 1800);
+    setBusy((p) => ({ ...p, [id]: true }));
+    try {
+      const res = await fetch(`/api/tasks/${id}/time`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hours: v }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        notify(data.error || "Couldn't log time.", "error");
+        return;
+      }
+      setHrs((p) => ({ ...p, [id]: "" }));
+      setFlash("✓ Logged " + v + "h");
+      notify("Logged " + v + "h on this task", "success");
+      setTimeout(() => setFlash(""), 1800);
+      onRefetch();
+    } catch {
+      notify("Couldn't reach the server. Please try again.", "error");
+    } finally {
+      setBusy((p) => ({ ...p, [id]: false }));
+    }
   };
 
-  const complete = (t: (typeof merged)[number]) => {
+  const complete = async (t: ApiTask) => {
     if (t.logged <= 0) return;
-    const cur = state[t.id] || {};
-    persist({ ...state, [t.id]: { ...cur, status: "Completed", completedOn: todayStr() } });
-    if (readAssignedTasks().some((x) => x.id === t.id)) updateAssignedTask(t.id, { status: "Completed", pct: 100 });
-    addNotif({ role: "teamlead", title: "Task completed", body: 'Arjun Mehta completed "' + t.task + '" — ' + t.logged + "h logged.", tab: "Tasks" });
-    notify("Task marked complete", "success");
-    setFlash("✓ Task completed");
-    setTimeout(() => setFlash(""), 1800);
+    setBusy((p) => ({ ...p, [t.id]: true }));
+    try {
+      const res = await fetch(`/api/tasks/${t.id}/complete`, { method: "POST" });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        notify(data.error || "Couldn't complete this task.", "error");
+        return;
+      }
+      sendNotification({
+        recipientLoginIds: [people.find((p) => p.position === "teamlead")?.loginId],
+        title: "Task completed",
+        body: userName + ' completed "' + t.task + '" — ' + t.logged + "h logged.",
+        tab: "Tasks",
+      });
+      notify("Task marked complete", "success");
+      setFlash("✓ Task completed");
+      setTimeout(() => setFlash(""), 1800);
+      onRefetch();
+    } catch {
+      notify("Couldn't reach the server. Please try again.", "error");
+    } finally {
+      setBusy((p) => ({ ...p, [t.id]: false }));
+    }
   };
 
-  const renderCard = (t: (typeof merged)[number]) => {
+  const renderCard = (t: ApiTask) => {
     const pct = Math.min(100, Math.round((t.logged / t.est) * 100));
-    const canComplete = t.logged > 0;
+    const canComplete = t.logged > 0 && !busy[t.id];
     return (
       <div key={t.id} style={{ background: "#fff", borderRadius: 12, border: "1px solid #E5E2DA", borderLeft: "3px solid " + PRI_COL[t.priority], padding: "16px 20px", marginBottom: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, marginBottom: 12, flexWrap: "wrap" }}>
@@ -109,9 +113,6 @@ export function MyTasksTab({ tasks = MY_TASKS, onChange }: MyTasksTabProps) {
               <DelIcon type={t.del} />
               <span style={{ fontSize: 15, fontWeight: 600 }}>{t.task}</span>
             </span>
-            {(t as { milestone?: string }).milestone && (
-              <span style={{ fontSize: 11, color: "#5C594F" }}>🎯 {(t as { milestone?: string }).milestone}</span>
-            )}
             {t.today && (
               <span style={{ background: "#171717", color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 12, letterSpacing: "0.04em" }}>
                 TODAY
@@ -134,7 +135,7 @@ export function MyTasksTab({ tasks = MY_TASKS, onChange }: MyTasksTabProps) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(110px,1fr))", gap: 14, marginBottom: 14, paddingBottom: 14, borderBottom: "1px solid #F2F0EA" }}>
           <TaskMeta label="Assignee" value={t.assignedTo} />
           <TaskMeta label="Assigned by" value={t.by} />
-          <TaskMeta label="Due" value={t.due} />
+          <TaskMeta label="Due" value={t.due || "—"} />
           <TaskMeta label="LOD / Phase" value={t.lod + " · " + t.phase} />
           <TaskMeta label="Est. hours" value={t.est + "h"} />
           <TaskMeta label="Logged" value={t.logged + "h"} />
@@ -151,6 +152,7 @@ export function MyTasksTab({ tasks = MY_TASKS, onChange }: MyTasksTabProps) {
             inputMode="decimal"
             placeholder="+ hours e.g. 2.5"
             value={hrs[t.id] || ""}
+            disabled={busy[t.id]}
             onChange={(e) => setHrs((p) => ({ ...p, [t.id]: e.target.value }))}
             style={{ width: 150, padding: "8px 12px", border: "1px solid #E5E2DA", borderRadius: 12, fontSize: 13, background: "#F6F4EF" }}
             onKeyDown={(e) => {
@@ -168,7 +170,7 @@ export function MyTasksTab({ tasks = MY_TASKS, onChange }: MyTasksTabProps) {
           >
             ✓ Mark complete
           </button>
-          {!canComplete && <span style={{ fontSize: 11.5, color: "#8A867C" }}>Log time before completing</span>}
+          {t.logged <= 0 && <span style={{ fontSize: 11.5, color: "#8A867C" }}>Log time before completing</span>}
         </div>
       </div>
     );
@@ -176,7 +178,7 @@ export function MyTasksTab({ tasks = MY_TASKS, onChange }: MyTasksTabProps) {
 
   return (
     <div>
-      {ping && <PingLeadModal userName="Arjun Mehta" onClose={() => setPing(false)} />}
+      {ping && <PingLeadModal userName={userName} onClose={() => setPing(false)} />}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
         <div>
           <h3 style={{ fontSize: 15, fontWeight: 600 }}>

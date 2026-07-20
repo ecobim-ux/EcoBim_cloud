@@ -1,17 +1,22 @@
-import { ISSUES, TEAM, type Project } from "@/lib/portal/data";
+import { useEffect, useState } from "react";
+import type { ApiProject } from "@/lib/portal/projects";
+import { fetchTeam, type ApiTeamMember } from "@/lib/portal/team";
+import { fetchIssues, type ApiIssue } from "@/lib/portal/issues";
 import { Avi } from "../ui/Avi";
 import { Badge, SevColor } from "../ui/Badge";
 import { PBar } from "../ui/PBar";
 import { LOD, PhasePill } from "../ui/icons";
 
-export function ProjectDetailModal({ p, onClose }: { p: Project; onClose: () => void }) {
-  const teamOnProject = TEAM.filter((m) => m.proj === p.name);
-  const phaseList = [
-    { n: "Concept", pct: p.phase === "Concept" ? p.progress : p.phase === "SD" || p.phase === "DD" || p.phase === "CD" ? 100 : 0 },
-    { n: "Schematic Design", pct: p.phase === "SD" ? p.progress : p.phase === "DD" || p.phase === "CD" ? 100 : 0 },
-    { n: "Design Development", pct: p.phase === "DD" ? p.progress : p.phase === "CD" ? 100 : 0 },
-    { n: "Construction Docs", pct: p.phase === "CD" ? p.progress : 0 },
-  ];
+export function ProjectDetailModal({ p, onClose }: { p: ApiProject; onClose: () => void }) {
+  const [team, setTeam] = useState<ApiTeamMember[]>([]);
+  const [issues, setIssues] = useState<ApiIssue[]>([]);
+  useEffect(() => {
+    fetchTeam().then(setTeam);
+    fetchIssues().then(setIssues);
+  }, []);
+  const teamOnProject = team.filter((m) => m.project === p.name);
+  const openIssuesOnProject = issues.filter((i) => i.project === p.name && !i.resolved);
+  const phaseList = p.phases.map((ph) => ({ n: ph.label, pct: ph.percentComplete }));
 
   return (
     <div
@@ -29,13 +34,13 @@ export function ProjectDetailModal({ p, onClose }: { p: Project; onClose: () => 
             ×
           </button>
           <div style={{ fontSize: 11, color: "rgba(244,242,236,.5)", fontFamily: "var(--font-instrument-sans),sans-serif", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>
-            {p.type}
+            {p.type || "—"}
           </div>
           <h2 style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 8 }}>{p.name}</h2>
-          <div style={{ fontSize: 13, color: "rgba(244,242,236,.65)", marginBottom: 14 }}>{p.client}</div>
+          <div style={{ fontSize: 13, color: "rgba(244,242,236,.65)", marginBottom: 14 }}>{p.client || "No client assigned"}</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <PhasePill p={p.phase} />
-            <LOD v={p.lod} />
+            {p.phaseCode && <PhasePill p={p.phaseCode} />}
+            {p.lod && <LOD v={p.lod} />}
             {p.issueCount > 0 && (
               <span style={{ background: "rgba(192,57,43,.2)", color: "#ff8a7a", padding: "3px 10px", borderRadius: 12, fontSize: 11, fontWeight: 600 }}>
                 ⚠ {p.issueCount} issues
@@ -51,12 +56,12 @@ export function ProjectDetailModal({ p, onClose }: { p: Project; onClose: () => 
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
                 <span style={{ fontFamily: "var(--font-instrument-sans),sans-serif", fontSize: 36, fontWeight: 700, color: "#171717", lineHeight: 1 }}>{p.progress}%</span>
-                <span style={{ fontSize: 12, color: "#8A867C" }}>{p.phase} phase</span>
+                <span style={{ fontSize: 12, color: "#8A867C" }}>{p.phaseCode ? p.phaseCode + " phase" : "No phase set"}</span>
               </div>
               <PBar pct={p.progress} label={p.name + " overall progress"} />
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, fontSize: 11, color: "#8A867C", fontFamily: "var(--font-instrument-sans),sans-serif" }}>
-                <span>{p.start}</span>
-                <span>{p.end}</span>
+                <span>{p.start || "—"}</span>
+                <span>{p.end || "—"}</span>
               </div>
               <div style={{ position: "relative", height: 6, background: "#E5E2DA", borderRadius: 12, marginTop: 6 }}>
                 <div style={{ position: "absolute", left: `${p.cpct}%`, top: -3, width: 2, height: 12, background: "#B8860B", borderRadius: 2 }} />
@@ -66,17 +71,21 @@ export function ProjectDetailModal({ p, onClose }: { p: Project; onClose: () => 
               <div style={{ fontSize: 11, fontWeight: 600, color: "#8A867C", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>
                 Phase Breakdown
               </div>
-              {phaseList.map((ph) => (
-                <div key={ph.n} style={{ marginBottom: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, color: ph.pct === 100 ? "#1A7A4A" : ph.pct > 0 ? "#171717" : "#8A867C" }}>{ph.n}</span>
-                    <span style={{ fontFamily: "var(--font-instrument-sans),sans-serif", fontSize: 11, color: ph.pct === 100 ? "#1A7A4A" : ph.pct > 0 ? "#171717" : "#8A867C", fontWeight: 600 }}>
-                      {ph.pct === 100 ? "Done" : ph.pct > 0 ? `${ph.pct}%` : "Upcoming"}
-                    </span>
+              {phaseList.length === 0 ? (
+                <div style={{ fontSize: 12, color: "#8A867C" }}>No phases set up yet.</div>
+              ) : (
+                phaseList.map((ph) => (
+                  <div key={ph.n} style={{ marginBottom: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontSize: 12, color: ph.pct === 100 ? "#1A7A4A" : ph.pct > 0 ? "#171717" : "#8A867C" }}>{ph.n}</span>
+                      <span style={{ fontFamily: "var(--font-instrument-sans),sans-serif", fontSize: 11, color: ph.pct === 100 ? "#1A7A4A" : ph.pct > 0 ? "#171717" : "#8A867C", fontWeight: 600 }}>
+                        {ph.pct === 100 ? "Done" : ph.pct > 0 ? `${ph.pct}%` : "Upcoming"}
+                      </span>
+                    </div>
+                    <PBar pct={ph.pct} status={ph.pct === 100 ? "Completed" : ph.pct > 0 ? "In Progress" : "Not Started"} label={ph.n} />
                   </div>
-                  <PBar pct={ph.pct} status={ph.pct === 100 ? "Completed" : ph.pct > 0 ? "In Progress" : "Not Started"} label={ph.n} />
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
           <div>
@@ -86,14 +95,14 @@ export function ProjectDetailModal({ p, onClose }: { p: Project; onClose: () => 
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 {teamOnProject.map((m) => (
-                  <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "#FAF9F6", borderRadius: 12, border: "1px solid #E5E2DA", padding: "12px 14px" }}>
-                    <Avi ini={m.ini} size={34} />
+                  <div key={m.partyId} style={{ display: "flex", alignItems: "center", gap: 12, background: "#FAF9F6", borderRadius: 12, border: "1px solid #E5E2DA", padding: "12px 14px" }}>
+                    <Avi ini={m.initials} size={34} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
                         {m.name}
                         {m.hasDelay && <span style={{ color: "#B8860B", fontSize: 12 }}>⚠</span>}
                       </div>
-                      <div style={{ fontSize: 11, color: "#8A867C", marginBottom: 4 }}>{m.role}</div>
+                      <div style={{ fontSize: 11, color: "#8A867C", marginBottom: 4 }}>{m.role || "—"}</div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <PBar pct={m.pct} status={m.status} label={m.name} />
                         <span style={{ fontFamily: "var(--font-instrument-sans),sans-serif", fontSize: 11, color: "#171717", fontWeight: 600, flexShrink: 0 }}>{m.pct}%</span>
@@ -105,10 +114,10 @@ export function ProjectDetailModal({ p, onClose }: { p: Project; onClose: () => 
               </div>
             )}
           </div>
-          {p.issueCount > 0 && (
+          {openIssuesOnProject.length > 0 && (
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>⚠ Open Issues ({p.issueCount})</div>
-              {ISSUES.slice(0, p.issueCount).map((iss) => (
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12 }}>⚠ Open Issues ({openIssuesOnProject.length})</div>
+              {openIssuesOnProject.map((iss) => (
                 <div key={iss.id} style={{ borderLeft: `3px solid ${SevColor[iss.sev]}`, background: "#FAF9F6", borderRadius: 12, border: "1px solid #E5E2DA", padding: "12px 14px", marginBottom: 8 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{iss.title}</div>
@@ -125,9 +134,9 @@ export function ProjectDetailModal({ p, onClose }: { p: Project; onClose: () => 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, paddingTop: 4, borderTop: "1px solid #E5E2DA" }}>
             {[
               { l: "Team Size", v: p.teamSize + "" },
-              { l: "LOD", v: p.lod },
-              { l: "Lead", v: p.lead },
-              { l: "Client", v: p.client.split(" ").slice(0, 2).join(" ") },
+              { l: "LOD", v: p.lod || "—" },
+              { l: "Lead", v: p.lead || "—" },
+              { l: "Client", v: p.client ? p.client.split(" ").slice(0, 2).join(" ") : "—" },
             ].map((s) => (
               <div key={s.l} style={{ textAlign: "center", padding: "10px 0" }}>
                 <div style={{ fontSize: 11, color: "#8A867C", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{s.l}</div>

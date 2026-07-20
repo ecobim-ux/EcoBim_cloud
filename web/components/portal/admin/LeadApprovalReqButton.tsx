@@ -1,41 +1,48 @@
 "use client";
 
-import { useState } from "react";
-import { addNotif, readApprovals, writeApprovals } from "@/lib/portal/storage";
-import { CLIENT_EMAILS, todayStr } from "@/lib/portal/helpers";
+import { useEffect, useState } from "react";
+import { usePeople } from "../PeopleProvider";
+import { createApprovalRequest } from "@/lib/portal/approvals";
+import { fetchProjects, type ApiProject } from "@/lib/portal/projects";
+import { sendNotification } from "@/lib/portal/notifications";
 import { Btn } from "../ui/Btn";
+import { notify } from "../ui/Toast";
 
-export function LeadApprovalReqButton() {
+export function LeadApprovalReqButton({ userName }: { userName: string }) {
+  const { people } = usePeople();
   const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [projects, setProjects] = useState<ApiProject[]>([]);
 
-  const send = () => {
-    const proj = "Dubai Marina Tower";
-    const a = {
-      id: "APR-" + String(Date.now()).slice(-5),
-      proj,
-      milestone: "CD Model Submission",
-      submitted: todayStr(),
-      client: "Dubai Marina Dev.",
-      clientEmail: CLIENT_EMAILS[proj] || "",
-      by: "Pranav R.",
-      stage: "Lead Requested",
-      leadNote: "CD set is ready — please review before it goes to the client.",
-      adminNote: "",
-      lastReminder: null,
-      history: [{ label: "Team lead requested admin review", date: todayStr() }],
-    };
-    writeApprovals([a, ...readApprovals()]);
-    addNotif({
-      role: "admin",
+  useEffect(() => {
+    fetchProjects().then(setProjects);
+  }, []);
+
+  const send = async () => {
+    const proj = projects[0];
+    const milestone = proj?.phaseLabel ? proj.phaseLabel + " Model Submission" : "Model Submission";
+    setBusy(true);
+    const result = await createApprovalRequest({
+      title: milestone,
+      projectName: proj?.name,
+      note: "Model set is ready — please review before it goes to the client.",
+    });
+    setBusy(false);
+    if (!result.ok) {
+      notify(result.error || "Couldn't request approval.", "error");
+      return;
+    }
+    sendNotification({
+      recipientLoginIds: [people.find((p) => p.position === "admin")?.loginId],
       title: "Approval review requested",
-      body: 'Pranav R. requested your review of "' + a.milestone + '" on ' + proj + " before client submission.",
+      body: userName + ' requested your review of "' + milestone + '"' + (proj ? " on " + proj.name : "") + " before client submission.",
       tab: "Client Management",
     });
     setSent(true);
   };
 
   return (
-    <Btn v="p" onClick={sent ? undefined : send}>
+    <Btn v="p" onClick={sent || busy ? undefined : send}>
       {sent ? "✓ Sent to Admin for review" : "✓ Request Client Approval"}
     </Btn>
   );

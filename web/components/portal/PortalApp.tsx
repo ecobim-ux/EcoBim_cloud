@@ -8,9 +8,11 @@ import { TeamLeadDashboard } from "./team-lead/TeamLeadDashboard";
 import { AdminDashboard } from "./admin/AdminDashboard";
 import { ClientPortal } from "./client/ClientPortal";
 import { CustomCursor } from "./CustomCursor";
+import { PeopleProvider } from "./PeopleProvider";
 
 export function PortalApp() {
   const [role, setRole] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>("");
   const [checkingSession, setCheckingSession] = useState(true);
   const [navTab, setNavTab] = useState<string | null>(null);
   const { show: showToast, ToastHost } = useToast();
@@ -19,7 +21,10 @@ export function PortalApp() {
     fetch("/api/auth/me")
       .then((r) => r.json() as Promise<{ session: { role: string; name: string } | null }>)
       .then((data) => {
-        if (data.session) setRole(data.session.role);
+        if (data.session) {
+          setRole(data.session.role);
+          setUserName(data.session.name);
+        }
       })
       .catch(() => {
         /* not logged in / API unreachable — stays on login page */
@@ -27,8 +32,9 @@ export function PortalApp() {
       .finally(() => setCheckingSession(false));
   }, []);
 
-  const handleLogin = (r: string) => {
+  const handleLogin = (r: string, name: string) => {
     setRole(r);
+    setUserName(name);
     setNavTab(null);
   };
 
@@ -51,25 +57,29 @@ export function PortalApp() {
   return (
     <div className="portal-root">
       {!role && <LoginPage onLogin={handleLogin} />}
-      {role === "employee" && (
-        <Fragment>
-          {skip}
-          <EmployeeDashboard onSwitch={back} initialTab={navTab} showToast={showToast} />
-        </Fragment>
+      {(role === "employee" || role === "teamlead" || role === "admin") && (
+        <PeopleProvider>
+          {role === "employee" && (
+            <Fragment>
+              {skip}
+              <EmployeeDashboard onSwitch={back} initialTab={navTab} showToast={showToast} userName={userName} />
+            </Fragment>
+          )}
+          {role === "teamlead" && (
+            <Fragment>
+              {skip}
+              <TeamLeadDashboard onSwitch={back} initialTab={navTab} showToast={showToast} userName={userName} />
+            </Fragment>
+          )}
+          {role === "admin" && (
+            <Fragment>
+              {skip}
+              <AdminDashboard onSwitch={back} initialTab={navTab} showToast={showToast} userName={userName} />
+            </Fragment>
+          )}
+        </PeopleProvider>
       )}
-      {role === "teamlead" && (
-        <Fragment>
-          {skip}
-          <TeamLeadDashboard onSwitch={back} initialTab={navTab} showToast={showToast} />
-        </Fragment>
-      )}
-      {role === "admin" && (
-        <Fragment>
-          {skip}
-          <AdminDashboard onSwitch={back} initialTab={navTab} showToast={showToast} />
-        </Fragment>
-      )}
-      {role === "client" && <ClientPortal onSwitch={back} initialTab={navTab} showToast={showToast} />}
+      {role === "client" && <ClientPortal onSwitch={back} initialTab={navTab} showToast={showToast} userName={userName} />}
       <ToastHost />
       <CustomCursor />
     </div>

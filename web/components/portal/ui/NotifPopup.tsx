@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { NOTIF_KEY, readNotifs, markRoleNotifsRead, type NotifItem } from "@/lib/portal/storage";
+import { useEffect, useRef } from "react";
+import type { ApiNotification } from "@/lib/portal/notifications";
 
 function _notifIconBg(title = "") {
   const t = title.toLowerCase();
@@ -25,14 +25,14 @@ function _notifEmoji(title = "") {
 }
 
 interface NotifPopupProps {
-  role: string;
+  notifs: ApiNotification[];
+  onDismiss: (id: string) => void;
+  onDismissAll: () => void;
   onClose: () => void;
   onNav: (tab: string) => void;
 }
 
-export function NotifPopup({ role, onClose, onNav }: NotifPopupProps) {
-  const [notifs, setNotifs] = useState<NotifItem[]>(() => readNotifs(role).filter((n) => !n.read));
-
+export function NotifPopup({ notifs, onDismiss, onDismissAll, onClose, onNav }: NotifPopupProps) {
   const ago = (ts: number) => {
     const d = Date.now() - ts;
     if (d < 60000) return "just now";
@@ -41,26 +41,16 @@ export function NotifPopup({ role, onClose, onNav }: NotifPopupProps) {
     return Math.round(d / 86400000) + "d ago";
   };
 
-  const dismiss = (id: string) => {
-    const all = readNotifs(role).map((n) => (n.id === id ? { ...n, read: true } : n));
-    localStorage.setItem(
-      NOTIF_KEY,
-      JSON.stringify({
-        ...JSON.parse(localStorage.getItem(NOTIF_KEY) || "{}"),
-        [role]: all,
-      }),
-    );
-    setNotifs((prev) => prev.filter((n) => n.id !== id));
-  };
+  const dismiss = (id: string) => onDismiss(id);
 
-  const accept = (n: NotifItem) => {
+  const accept = (n: ApiNotification) => {
     dismiss(n.id);
     if (n.tab) onNav(n.tab);
     onClose();
   };
 
   const dismissAll = () => {
-    markRoleNotifsRead(role);
+    onDismissAll();
     onClose();
   };
 

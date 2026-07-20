@@ -1,14 +1,20 @@
 "use client";
 
-import type { TeamMember } from "@/lib/portal/data";
-import { computeProductivity } from "@/lib/portal/productivity";
+import { useEffect, useState } from "react";
+import type { ApiTask } from "@/app/api/tasks/route";
+import type { ApiTeamMember } from "@/lib/portal/team";
+import { computeProductivityFromTasks } from "@/lib/portal/productivity";
+import { fetchTasks } from "@/lib/portal/tasks";
 import { Avi } from "../ui/Avi";
 import { ProductivityView } from "../ui/ProductivityView";
 import { RoleTag } from "../ui/RoleTag";
 import { useModalA11y } from "../ui/useModalA11y";
 
-export function EmployeeProductivityModal({ member, onClose }: { member: TeamMember; onClose: () => void }) {
-  const data = computeProductivity(member);
+export function EmployeeProductivityModal({ member, onClose }: { member: ApiTeamMember; onClose: () => void }) {
+  const [tasks, setTasks] = useState<ApiTask[] | null>(null);
+  useEffect(() => {
+    fetchTasks().then((all) => setTasks(all.filter((t) => t.assignedTo === member.name)));
+  }, [member.name]);
   const dialogRef = useModalA11y(onClose);
 
   const overlay = {
@@ -38,19 +44,23 @@ export function EmployeeProductivityModal({ member, onClose }: { member: TeamMem
     <div style={overlay} onClick={onClose}>
       <div ref={dialogRef} tabIndex={-1} style={card} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={member.name + " productivity"}>
         <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "18px 22px", borderBottom: "1px solid #E5E2DA", background: "#fff" }}>
-          <Avi ini={member.ini} size={32} />
+          <Avi ini={member.initials} size={32} />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 15, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
               {member.name} <RoleTag role="employee" />
             </div>
-            <div style={{ fontSize: 12, color: "#8A867C" }}>{member.role} · Productivity</div>
+            <div style={{ fontSize: 12, color: "#8A867C" }}>{member.role || "Employee"} · Productivity</div>
           </div>
           <button className="meet-x" onClick={onClose} style={{ width: 32, height: 32, borderRadius: 9, border: "none", background: "none", color: "#8A867C", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>
             ×
           </button>
         </div>
         <div style={{ padding: "20px 22px" }}>
-          <ProductivityView data={data} />
+          {tasks === null ? (
+            <div style={{ fontSize: 13, color: "#8A867C", textAlign: "center", padding: "20px 0" }}>Loading…</div>
+          ) : (
+            <ProductivityView data={computeProductivityFromTasks(tasks)} />
+          )}
         </div>
       </div>
     </div>

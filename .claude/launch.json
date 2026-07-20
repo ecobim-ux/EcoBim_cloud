@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-dev",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/d", "/c", "cd", "/d", "C:\\Users\\Ovhay\\Desktop\\EcoBIM new front and backend\\web", "&&", "npm", "run", "dev"],
+      "port": 3000
+    }
+  ]
+}

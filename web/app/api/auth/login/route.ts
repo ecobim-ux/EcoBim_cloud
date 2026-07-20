@@ -11,12 +11,51 @@ interface LoginRow {
   role_code: string;
 }
 
+const WINDOW_MINUTES = 15;
+const MAX_ATTEMPTS_PER_LOGIN = 6;
+const MAX_ATTEMPTS_PER_IP = 20;
+
+function clientIp(req: Request): string {
+  return req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+}
+
+async function recentFailureCounts(loginId: string, ip: string): Promise<{ byLogin: number; byIp: number }> {
+  return withOrgContext(ECOBIM_ORG_ID, null, async (sql) => {
+    const rows = await sql<{ by_login: string; by_ip: string }[]>`
+      select
+        count(*) filter (where login_id = ${loginId}) as by_login,
+        count(*) filter (where ip_address = ${ip}) as by_ip
+      from iam.login_attempt
+      where organization_id = ${ECOBIM_ORG_ID}
+        and not succeeded
+        and attempted_at > now() - (${WINDOW_MINUTES} * interval '1 minute')
+        and (login_id = ${loginId} or ip_address = ${ip})
+    `;
+    return { byLogin: Number(rows[0]?.by_login ?? 0), byIp: Number(rows[0]?.by_ip ?? 0) };
+  });
+}
+
+async function recordAttempt(loginId: string, ip: string, succeeded: boolean): Promise<void> {
+  await withOrgContext(ECOBIM_ORG_ID, null, async (sql) => {
+    await sql`
+      insert into iam.login_attempt (organization_id, login_id, ip_address, succeeded)
+      values (${ECOBIM_ORG_ID}, ${loginId}, ${ip}, ${succeeded})
+    `;
+  });
+}
+
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as { loginId?: string; password?: string } | null;
   const loginId = body?.loginId?.trim();
   const password = body?.password ?? "";
   if (!loginId || !password) {
     return NextResponse.json({ error: "User ID and password are required." }, { status: 400 });
+  }
+
+  const ip = clientIp(req);
+  const { byLogin, byIp } = await recentFailureCounts(loginId, ip);
+  if (byLogin >= MAX_ATTEMPTS_PER_LOGIN || byIp >= MAX_ATTEMPTS_PER_IP) {
+    return NextResponse.json({ error: "Too many failed attempts. Please wait a few minutes and try again." }, { status: 429 });
   }
 
   const row = await withOrgContext(ECOBIM_ORG_ID, null, async (sql) => {
@@ -38,14 +77,17 @@ export async function POST(req: Request) {
   });
 
   if (!row) {
+    await recordAttempt(loginId, ip, false);
     return NextResponse.json({ error: "Incorrect ID or password. Please try again." }, { status: 401 });
   }
 
   const valid = await bcrypt.compare(password, row.secret_hash);
   if (!valid) {
+    await recordAttempt(loginId, ip, false);
     return NextResponse.json({ error: "Incorrect ID or password. Please try again." }, { status: 401 });
   }
 
+  await recordAttempt(loginId, ip, true);
   await createSession(row.user_account_id);
 
   await withOrgContext(ECOBIM_ORG_ID, row.user_account_id, async (sql) => {

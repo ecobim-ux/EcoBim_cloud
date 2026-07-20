@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { PEOPLE_KEY, readPeople, writePeople, type Person } from "@/lib/portal/storage";
+import { useState } from "react";
+import { createPerson, deactivatePerson } from "@/lib/portal/people";
+import { usePeople } from "../PeopleProvider";
 import { cardS, fldS, labS, secSub, secTitle } from "@/lib/portal/style-tokens";
 import { Avi } from "../ui/Avi";
 import { Btn } from "../ui/Btn";
@@ -10,63 +11,45 @@ import { TableWrap, THead, TRow } from "../ui/Table";
 
 /** Team-lead scoped version of AdminPeopleTab — same add/remove capability,
     restricted to the "employee" position since a lead only manages the
-    people under them, not other leads/admins/clients. */
+    people under them, not other leads/admins/clients (also enforced
+    server-side in the /api/people routes). */
 export function ManageTeamSection() {
-  const [people, setPeople] = useState<Person[]>(readPeople);
+  const { people: allPeople, refetch } = usePeople();
+  const people = allPeople.filter((p) => p.position === "employee");
   const [nm, setNm] = useState("");
   const [em, setEm] = useState("");
   const [lid, setLid] = useState("");
   const [lpw, setLpw] = useState("");
   const [msg, setMsg] = useState("");
 
-  useEffect(() => {
-    const handler = (e: StorageEvent) => {
-      if (e.key === PEOPLE_KEY || !e.key) setPeople(readPeople());
-    };
-    window.addEventListener("storage", handler);
-    return () => window.removeEventListener("storage", handler);
-  }, []);
-
-  const employees = people.filter((p) => p.position === "employee");
-
-  const initials = (name: string) => {
-    const w = name.trim().split(/\s+/);
-    return (((w[0] || "")[0] || "") + ((w[1] || "")[0] || (w[0] || "")[1] || "")).toUpperCase() || "?";
-  };
-
-  const addP = () => {
+  const addP = async () => {
     if (!nm.trim() || !em.trim()) {
       setMsg("⚠ Enter both a name and an email address.");
       return;
     }
-    const loginId = lid.trim() || nm.trim().split(/\s+/)[0].toLowerCase();
-    const pass = lpw.trim() || "ecobim@1";
-    const np: Person = {
-      id: "u-" + Date.now(),
-      name: nm.trim(),
-      email: em.trim(),
-      ini: initials(nm),
-      position: "employee",
-      loginId,
-      pass,
-    };
-    const next = [...people, np];
-    setPeople(next);
-    writePeople(next);
-    setMsg("✓ " + np.name + " added to your team. Login ID: " + loginId + " · Password: " + pass + ".");
+    const result = await createPerson({ name: nm.trim(), email: em.trim(), position: "employee", loginId: lid.trim() || undefined, password: lpw.trim() || undefined });
+    if (!result.ok) {
+      setMsg("⚠ " + result.error);
+      return;
+    }
+    setMsg("✓ " + nm.trim() + " added to your team. Login ID: " + result.loginId + " · Password: " + result.password + " — shown once, share it securely.");
     setNm("");
     setEm("");
     setLid("");
     setLpw("");
+    refetch();
   };
 
-  const rm = (id: string) => {
-    const next = people.filter((p) => p.id !== id);
-    setPeople(next);
-    writePeople(next);
+  const rm = async (partyId: string) => {
+    const result = await deactivatePerson(partyId);
+    if (!result.ok) {
+      setMsg("⚠ " + result.error);
+      return;
+    }
+    refetch();
   };
 
-  const tpl = "1.2fr 1.6fr 100px 100px 76px";
+  const tpl = "1.2fr 1.6fr 100px 76px";
 
   return (
     <div style={{ marginBottom: 30 }}>
@@ -103,22 +86,21 @@ export function ManageTeamSection() {
         )}
       </div>
       <div style={{ fontSize: 15, fontWeight: 600, margin: "0 0 12px" }}>
-        Team roster <span style={{ color: "#8A867C", fontWeight: 400 }}>· {employees.length}</span>
+        Team roster <span style={{ color: "#8A867C", fontWeight: 400 }}>· {people.length}</span>
       </div>
       <TableWrap>
-        <THead cols={["Name", "Email", "Login ID", "Password", ""]} tpl={tpl} />
-        {employees.map((p) => (
-          <TRow key={p.id} tpl={tpl}>
+        <THead cols={["Name", "Email", "Login ID", ""]} tpl={tpl} />
+        {people.map((p) => (
+          <TRow key={p.partyId} tpl={tpl}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Avi ini={p.ini} size={26} />
+              <Avi ini={p.initials} size={26} />
               <span style={{ fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 5 }}>
                 {p.name} <RoleTag role="employee" />
               </span>
             </div>
-            <span style={{ fontSize: 12, color: "#5C594F", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.email}</span>
+            <span style={{ fontSize: 12, color: "#5C594F", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.email || "—"}</span>
             <span style={{ fontSize: 12, color: "#5C594F", fontFamily: "monospace" }}>{p.loginId || "—"}</span>
-            <span style={{ fontSize: 12, color: "#5C594F", fontFamily: "monospace" }}>{p.pass || "—"}</span>
-            <Btn v="d" onClick={() => rm(p.id)} xs={{ fontSize: 11.5, padding: "5px 10px" }}>
+            <Btn v="d" onClick={() => rm(p.partyId)} xs={{ fontSize: 11.5, padding: "5px 10px" }}>
               Remove
             </Btn>
           </TRow>

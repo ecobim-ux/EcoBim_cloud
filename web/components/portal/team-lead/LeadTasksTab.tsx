@@ -1,75 +1,85 @@
 "use client";
 
-import { useState } from "react";
-import { MILESTONES, STATUS_DOT, TEAM } from "@/lib/portal/data";
-import { addAssignedTask, addNotif, readAssignedTasks, writeAssignedTasks, type AssignedTask } from "@/lib/portal/storage";
+import { useCallback, useEffect, useState } from "react";
+import { MILESTONES, STATUS_DOT } from "@/lib/portal/data";
+import { usePeople } from "../PeopleProvider";
+import { createTask, fetchTasks, removeTask, type ApiTask } from "@/lib/portal/tasks";
+import { sendNotification } from "@/lib/portal/notifications";
 import { fmtMDate } from "@/lib/portal/helpers";
 import { cardS, fldS, labS, secSub, secTitle } from "@/lib/portal/style-tokens";
 import { Badge, Priority } from "../ui/Badge";
 import { Btn } from "../ui/Btn";
 import { DatePicker } from "../ui/DatePicker";
 import { TableWrap, THead, TRow } from "../ui/Table";
+import { notify } from "../ui/Toast";
 
 export function LeadTasksTab() {
-  const team = TEAM;
-  const [emp, setEmp] = useState(team[0] ? team[0].name : "");
+  const { people } = usePeople();
+  const employees = people.filter((p) => p.position === "employee");
+  const [emp, setEmp] = useState("");
   const [task, setTask] = useState("");
   const [due, setDue] = useState("");
   const [priority, setPriority] = useState("Medium");
   const [ms, setMs] = useState("");
-  const [tasks, setTasks] = useState<AssignedTask[]>(() => readAssignedTasks());
+  const [tasks, setTasks] = useState<ApiTask[]>([]);
   const [msg, setMsg] = useState("");
 
-  const refresh = () => setTasks(readAssignedTasks());
+  const refresh = useCallback(() => {
+    fetchTasks().then(setTasks);
+  }, []);
 
-  const create = () => {
-    if (!task.trim() || !emp) {
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!emp && employees.length > 0) setEmp(employees[0].loginId);
+  }, [employees, emp]);
+
+  const create = async () => {
+    const person = employees.find((p) => p.loginId === emp);
+    if (!task.trim() || !person) {
       setMsg("⚠ Pick an employee and enter a task.");
       return;
     }
     const dueLabel = due ? fmtMDate(due) : "TBD";
-    const t: AssignedTask = {
-      id: "LT" + String(Date.now()).slice(-6),
-      task: task.trim(),
-      assignedTo: emp,
-      by: "Pranav R.",
-      assignedRole: "employee",
-      del: "Task",
-      lod: "—",
-      phase: "CD",
-      status: "Not Started",
-      pct: 0,
-      due: dueLabel,
-      delay: null,
+    const result = await createTask({
+      title: task.trim(),
+      assigneeLoginId: person.loginId,
       priority,
-      milestone: ms || "",
-      project: "Dubai Marina Tower",
-    };
-    addAssignedTask(t);
-    addNotif({
-      role: "employee",
+      dueOn: due || undefined,
+      milestoneLabel: ms || undefined,
+    });
+    if (!result.ok) {
+      setMsg("⚠ " + result.error);
+      return;
+    }
+    sendNotification({
+      recipientLoginIds: [person.loginId],
       title: "New task assigned by Team Lead",
-      body: "Pranav R. assigned: " + t.task + (due ? " — due " + dueLabel : "") + " (" + priority + " priority)." + (ms ? " Linked to milestone: " + ms + "." : ""),
+      body: "Pranav R. assigned: " + task.trim() + (due ? " — due " + dueLabel : "") + " (" + priority + " priority)." + (ms ? " Linked to milestone: " + ms + "." : ""),
       tab: "My Tasks",
     });
     refresh();
-    setMsg('✓ "' + t.task + '" assigned to ' + emp + ".");
+    setMsg('✓ "' + task.trim() + '" assigned to ' + person.name + ".");
     setTask("");
     setDue("");
     setMs("");
   };
 
-  const removeTask = (id: string) => {
-    const next = readAssignedTasks().filter((t) => t.id !== id);
-    writeAssignedTasks(next);
-    setTasks(next);
+  const onRemove = async (id: string) => {
+    const result = await removeTask(id);
+    if (!result.ok) {
+      notify(result.error || "Couldn't remove that task.", "error");
+      return;
+    }
+    refresh();
   };
 
-  const teamNames = team.map((m) => m.name);
-  const leadTasks = tasks.filter((t) => t.by === "Pranav R." || teamNames.includes(t.assignedTo as string));
+  const employeeNames = employees.map((p) => p.name);
+  const leadTasks = tasks.filter((t) => employeeNames.includes(t.assignedTo));
   const counts = leadTasks.reduce((a: Record<string, number>, t) => {
-    const s = t.status as string;
-    a[s] = (a[s] || 0) + 1;
+    a[t.status] = (a[t.status] || 0) + 1;
     return a;
   }, {});
   const tpl = "1.9fr 1.1fr 1.2fr 80px 100px 110px 64px";
@@ -89,8 +99,10 @@ export function LeadTasksTab() {
           <label>
             <span style={labS}>Assign to</span>
             <select style={fldS} value={emp} onChange={(e) => setEmp(e.target.value)}>
-              {team.map((m) => (
-                <option key={m.id}>{m.name}</option>
+              {employees.map((p) => (
+                <option key={p.loginId} value={p.loginId}>
+                  {p.name}
+                </option>
               ))}
             </select>
           </label>
@@ -149,15 +161,15 @@ export function LeadTasksTab() {
           <THead cols={["Task", "Assignee", "Milestone", "Priority", "Due", "Status", ""]} tpl={tpl} />
           {leadTasks.map((t) => (
             <TRow key={t.id} tpl={tpl}>
-              <span style={{ fontSize: 13, fontWeight: 500 }}>{t.task as string}</span>
-              <span style={{ fontSize: 12, color: "#5C594F" }}>{t.assignedTo as string}</span>
-              <span style={{ fontSize: 12, color: t.milestone ? "#171717" : "#8A867C" }}>{t.milestone ? "🎯 " + (t.milestone as string) : "—"}</span>
-              <Priority p={(t.priority as string) || "Medium"} />
-              <span style={{ fontSize: 12, color: "#5C594F" }}>{t.due as string}</span>
-              <Badge s={t.status as string} />
+              <span style={{ fontSize: 13, fontWeight: 500 }}>{t.task}</span>
+              <span style={{ fontSize: 12, color: "#5C594F" }}>{t.assignedTo}</span>
+              <span style={{ fontSize: 12, color: t.milestone ? "#171717" : "#8A867C" }}>{t.milestone ? "🎯 " + t.milestone : "—"}</span>
+              <Priority p={t.priority || "Medium"} />
+              <span style={{ fontSize: 12, color: "#5C594F" }}>{t.due || "—"}</span>
+              <Badge s={t.status} />
               <button
                 className="btn-d"
-                onClick={() => removeTask(t.id)}
+                onClick={() => onRemove(t.id)}
                 title="Remove task"
                 style={{ background: "#FDECEA", color: "#C0392B", border: "none", borderRadius: 9, padding: "5px 9px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
               >

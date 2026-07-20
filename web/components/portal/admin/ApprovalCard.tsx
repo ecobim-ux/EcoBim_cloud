@@ -1,23 +1,25 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { addNotif, type Approval } from "@/lib/portal/storage";
+import { usePeople } from "../PeopleProvider";
+import { transitionApproval, type ApiApproval } from "@/lib/portal/approvals";
 import { CO_EMAIL, ML } from "@/lib/portal/mail";
-import { todayStr } from "@/lib/portal/helpers";
+import { sendNotification } from "@/lib/portal/notifications";
 import { fldS } from "@/lib/portal/style-tokens";
 import { Btn } from "../ui/Btn";
 import { notify } from "../ui/Toast";
 import { AprStepper } from "./AprStepper";
 
 interface ApprovalCardProps {
-  a: Approval;
-  onUpdate: (id: string, patch: Partial<Approval>) => void;
+  a: ApiApproval;
+  onChange: () => void;
 }
 
-export function ApprovalCard({ a, onUpdate }: ApprovalCardProps) {
+export function ApprovalCard({ a, onChange }: ApprovalCardProps) {
+  const { people } = usePeople();
   const [note, setNote] = useState("");
   const [open, setOpen] = useState(false);
-  const [rem, setRem] = useState(false);
+  const [busy, setBusy] = useState(false);
   const stage = a.stage || "Sent to Client";
 
   const reminderMail = ML(
@@ -31,26 +33,42 @@ export function ApprovalCard({ a, onUpdate }: ApprovalCardProps) {
     "Dear " + a.client + ",\n\nPlease review and approve the following deliverable:\n\nProject: " + a.proj + "\nMilestone: " + a.milestone + "\n\nRegards,\nEcoBIM\n" + CO_EMAIL,
   );
 
-  const suggest = () => {
-    if (!note.trim()) return;
-    onUpdate(a.id, {
-      stage: "Changes Requested",
-      adminNote: note.trim(),
-      history: [...(a.history || []), { label: "Admin requested updates", date: todayStr() }],
-    });
-    addNotif({ role: "teamlead", title: "Updates requested by Admin", body: 'Admin suggested updates on "' + a.milestone + '" (' + a.proj + "): " + note.trim(), tab: "Tasks" });
-    setOpen(false);
-    setNote("");
+  const run = async (action: Parameters<typeof transitionApproval>[1], n?: string) => {
+    setBusy(true);
+    const result = await transitionApproval(a.id, action, n);
+    setBusy(false);
+    if (!result.ok) {
+      notify(result.error || "Couldn't complete that action.", "error");
+      return false;
+    }
+    return true;
   };
 
-  const sendClient = () => {
-    onUpdate(a.id, {
-      stage: "Sent to Client",
-      history: [...(a.history || []), { label: "Admin reviewed & sent to client", date: todayStr() }],
+  const suggest = async () => {
+    if (!note.trim()) return;
+    if (!(await run("SUGGEST_UPDATES", note.trim()))) return;
+    sendNotification({
+      recipientLoginIds: [people.find((p) => p.position === "teamlead")?.loginId],
+      title: "Updates requested by Admin",
+      body: 'Admin suggested updates on "' + a.milestone + '" (' + a.proj + "): " + note.trim(),
+      tab: "Tasks",
     });
-    addNotif({ role: "client", title: "Approval requested", body: a.milestone + " for " + a.proj + " is awaiting your approval.", tab: "Milestones & Approvals" });
+    setOpen(false);
+    setNote("");
+    onChange();
+  };
+
+  const sendClient = async () => {
+    if (!(await run("SEND_TO_CLIENT"))) return;
+    sendNotification({
+      recipientLoginIds: [people.find((p) => p.email === a.clientEmail)?.loginId],
+      title: "Approval requested",
+      body: a.milestone + " for " + a.proj + " is awaiting your approval.",
+      tab: "Milestones & Approvals",
+    });
     setOpen(false);
     notify("Sent to client for approval", "success");
+    onChange();
     try {
       window.location.href = clientMail;
     } catch {
@@ -58,14 +76,15 @@ export function ApprovalCard({ a, onUpdate }: ApprovalCardProps) {
     }
   };
 
-  const markApproved = () => {
-    onUpdate(a.id, { stage: "Approved", history: [...(a.history || []), { label: "Client approved", date: todayStr() }] });
+  const markApproved = async () => {
+    if (!(await run("APPROVE"))) return;
     notify("Marked as approved", "success");
+    onChange();
   };
 
-  const sendReminder = () => {
-    onUpdate(a.id, { lastReminder: todayStr() });
-    setRem(true);
+  const sendReminder = async () => {
+    await run("REMIND");
+    onChange();
   };
 
   return (
@@ -134,7 +153,7 @@ export function ApprovalCard({ a, onUpdate }: ApprovalCardProps) {
         {stage === "Sent to Client" && (
           <Fragment>
             <span style={{ fontSize: 12, color: "#1A56C4", fontWeight: 600 }}>↗ Awaiting client approval</span>
-            {rem ? (
+            {a.lastReminder ? (
               <span style={{ fontSize: 12, color: "#1A7A4A", fontWeight: 600 }}>✓ Reminder sent</span>
             ) : (
               <a
@@ -151,6 +170,7 @@ export function ApprovalCard({ a, onUpdate }: ApprovalCardProps) {
           </Fragment>
         )}
         {stage === "Approved" && <span style={{ fontSize: 12.5, color: "#1A7A4A", fontWeight: 700 }}>✓ Approved by client</span>}
+        {busy && <span style={{ fontSize: 11.5, color: "#8A867C" }}>Saving…</span>}
       </div>
       {a.history && a.history.length > 0 && (
         <div style={{ marginTop: 13, borderTop: "1px dashed #E5E2DA", paddingTop: 11, display: "flex", flexDirection: "column", gap: 6 }}>
@@ -161,13 +181,6 @@ export function ApprovalCard({ a, onUpdate }: ApprovalCardProps) {
               <span style={{ marginLeft: "auto", fontFamily: "var(--font-instrument-sans),sans-serif", color: "#8A867C" }}>{h.date}</span>
             </div>
           ))}
-          {a.lastReminder && (
-            <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 11.5 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#B7770D", flexShrink: 0 }} />
-              <span style={{ color: "#5C594F" }}>Reminder emailed to client</span>
-              <span style={{ marginLeft: "auto", fontFamily: "var(--font-instrument-sans),sans-serif", color: "#8A867C" }}>{a.lastReminder}</span>
-            </div>
-          )}
         </div>
       )}
     </div>

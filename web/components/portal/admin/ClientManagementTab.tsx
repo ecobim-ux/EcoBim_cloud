@@ -1,17 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { readApprovals, writeApprovals, type Approval } from "@/lib/portal/storage";
+import { useCallback, useEffect, useState } from "react";
+import { fetchApprovals, type ApiApproval } from "@/lib/portal/approvals";
 import { ApprovalCard } from "./ApprovalCard";
 
 export function ClientManagementTab() {
-  const [approvals, setApprovals] = useState<Approval[]>(() => readApprovals());
+  const [approvals, setApprovals] = useState<ApiApproval[]>([]);
 
-  const updateApproval = (id: string, patch: Partial<Approval>) => {
-    const next = approvals.map((a) => (a.id === id ? { ...a, ...patch } : a));
-    setApprovals(next);
-    writeApprovals(next);
-  };
+  const load = useCallback(() => {
+    fetchApprovals().then(setApprovals);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const pendingAdmin = approvals.filter((a) => (a.stage || "") === "Lead Requested").length;
 
@@ -33,7 +35,7 @@ export function ClientManagementTab() {
           No approvals in the pipeline.
         </div>
       ) : (
-        approvals.map((a) => <ApprovalCard key={a.id} a={a} onUpdate={updateApproval} />)
+        approvals.map((a) => <ApprovalCard key={a.id} a={a} onChange={load} />)
       )}
     </div>
   );

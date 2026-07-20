@@ -1,10 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { PROJECTS, STATUS_DOT } from "@/lib/portal/data";
-import { addAssignedTask, addMeeting, addNotif, POS_LABEL, readAssignedTasks, readPeople, type AssignedTask, type Person } from "@/lib/portal/storage";
+import { useCallback, useEffect, useState } from "react";
+import type { ApiTask } from "@/app/api/tasks/route";
+import { STATUS_DOT } from "@/lib/portal/data";
+import { POS_LABEL, type ApiPerson } from "@/lib/portal/people";
+import { fetchProjects } from "@/lib/portal/projects";
+import { usePeople } from "../PeopleProvider";
 import { CO_EMAIL, ML } from "@/lib/portal/mail";
 import { fmtMDate, gcalLink, meetCode, todayISO } from "@/lib/portal/helpers";
+import { scheduleMeeting } from "@/lib/portal/meetings";
+import { sendNotification } from "@/lib/portal/notifications";
+import { fetchTasks } from "@/lib/portal/tasks";
 import { cardS, fldS, labS, secSub, secTitle } from "@/lib/portal/style-tokens";
 import { Badge, Priority } from "../ui/Badge";
 import { Btn } from "../ui/Btn";
@@ -13,24 +19,9 @@ import { TableWrap, THead, TRow } from "../ui/Table";
 import { Toggle } from "../ui/Toggle";
 import { CamIcon } from "../ui/icons";
 
-const PROJ_TASK_SEED: Record<string, AssignedTask[]> = {
-  "Dubai Marina Tower": [
-    { id: "s1", task: "MEP Routing — Level 5", assignedTo: "Arjun Mehta", due: "15 Jul", status: "In Progress", priority: "High" },
-    { id: "s2", task: "Structural Clash Report", assignedTo: "Sara Al Rashid", due: "10 Jul", status: "Delayed", priority: "High" },
-    { id: "s3", task: "Arch Model Update — L1–4", assignedTo: "Arjun Mehta", due: "05 Jul", status: "Completed", priority: "Medium" },
-  ],
-  "Downtown Mixed-Use Podium": [
-    { id: "s4", task: "Arch Model — Podium Level", assignedTo: "Vikram Nair", due: "18 Jul", status: "In Progress", priority: "Medium" },
-    { id: "s5", task: "DD Coordination Set", assignedTo: "Vikram Nair", due: "24 Jul", status: "Not Started", priority: "Low" },
-  ],
-  "Jumeirah Villa Complex": [
-    { id: "s6", task: "Concept Massing Model", assignedTo: "Layla Hassan", due: "20 Jul", status: "In Progress", priority: "Medium" },
-  ],
-};
-
 interface CreateResult {
   task: string;
-  person: Person;
+  person: ApiPerson;
   proj: string;
   meetLink: string;
   calLink: string;
@@ -39,10 +30,11 @@ interface CreateResult {
 }
 
 export function ProjectTaskSection() {
-  const people = readPeople().filter((p) => p.position !== "client");
-  const projOptions = PROJECTS.map((p) => p.name);
-  const [proj, setProj] = useState(projOptions[0] || "");
-  const [who, setWho] = useState(people[0] ? people[0].id : "");
+  const { people: allPeople } = usePeople();
+  const people = allPeople.filter((p) => p.position !== "client");
+  const [projOptions, setProjOptions] = useState<string[]>([]);
+  const [proj, setProj] = useState("");
+  const [who, setWho] = useState("");
   const [task, setTask] = useState("");
   const [due, setDue] = useState("");
   const [priority, setPriority] = useState("Medium");
@@ -51,103 +43,114 @@ export function ProjectTaskSection() {
   const [withCal, setWithCal] = useState(true);
   const [withRemind, setWithRemind] = useState(true);
   const [remindOn, setRemindOn] = useState("");
-  const [log, setLog] = useState<AssignedTask[]>(() => readAssignedTasks());
+  const [tasks, setTasks] = useState<ApiTask[]>([]);
   const [result, setResult] = useState<CreateResult | null>(null);
   const [msg, setMsg] = useState("");
 
-  const projObj = PROJECTS.find((p) => p.name === proj);
-  const person = people.find((p) => p.id === who);
-  const seed = PROJ_TASK_SEED[proj] || [];
-  const assignedForProj = log.filter((t) => t.project === proj);
-  const allForProj = [...assignedForProj, ...seed];
+  const refresh = useCallback(() => {
+    fetchTasks().then(setTasks);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    fetchProjects().then((projects) => setProjOptions(projects.map((p) => p.name)));
+  }, []);
+
+  useEffect(() => {
+    if (!who && people.length > 0) setWho(people[0].partyId);
+  }, [people, who]);
+
+  useEffect(() => {
+    if (!proj && projOptions.length > 0) setProj(projOptions[0]);
+  }, [projOptions, proj]);
+
+  const person = people.find((p) => p.partyId === who);
+  const allForProj = tasks.filter((t) => t.project === proj);
   const counts = allForProj.reduce((a: Record<string, number>, t) => {
-    const s = t.status as string;
-    a[s] = (a[s] || 0) + 1;
+    a[t.status] = (a[t.status] || 0) + 1;
     return a;
-  }, {});
+  }, {} as Record<string, number>);
   const dueLabel = due ? fmtMDate(due) : "TBD";
 
-  const create = () => {
+  const create = async () => {
     if (!task.trim() || !person) {
       setMsg("⚠ Pick a project, a person and enter a task.");
       return;
     }
+
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: task.trim(), assigneeLoginId: person.loginId, projectName: proj, priority, dueOn: due || undefined }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setMsg("⚠ " + (data.error || "Couldn't create that task."));
+        return;
+      }
+    } catch {
+      setMsg("⚠ Couldn't reach the server. Please try again.");
+      return;
+    }
+
     const meetLink = withMeet ? "https://meet.google.com/" + meetCode() : "";
-    const t: AssignedTask = {
-      id: "T" + String(Date.now()).slice(-6),
-      task: task.trim(),
-      project: proj,
-      assignedTo: person.name,
-      assignedRole: person.position,
-      del: "Task",
-      lod: "—",
-      phase: projObj ? projObj.phase : "CD",
-      status: "Not Started",
-      pct: 0,
-      due: dueLabel,
-      delay: null,
-      priority,
-      by: "Admin",
-      meetLink,
-    };
-    addAssignedTask(t);
-    addNotif({
-      role: person.position,
+    const taskTitle = task.trim();
+    sendNotification({
+      recipientLoginIds: [person.loginId],
       title: "New task assigned by Admin",
-      body: "Admin assigned: " + t.task + " on " + proj + (due ? " — due " + dueLabel : "") + " (" + priority + " priority).",
+      body: "Admin assigned: " + taskTitle + " on " + proj + (due ? " — due " + dueLabel : "") + " (" + priority + " priority).",
       tab: person.position === "employee" ? "My Tasks" : undefined,
     });
     if (withMeet) {
-      addMeeting({
-        id: "MTG-" + String(Date.now()).slice(-6),
-        code: meetLink.split("/").pop() || "",
-        title: task.trim() + " — " + proj,
+      scheduleMeeting({
+        title: taskTitle + " — " + proj,
         date: due || todayISO(),
         time: mtime,
-        dur: "1 hr",
-        link: meetLink,
-        organizer: "Admin User",
-        organizerRole: "admin",
-        attendees: [{ name: person.name, email: person.email, position: person.position }],
-        note: "Task: " + task.trim(),
-        ts: Date.now(),
+        duration: "1 hr",
+        joinUrl: meetLink,
+        note: "Task: " + taskTitle,
+        attendeeLoginIds: [person.loginId],
       });
-      addNotif({
-        role: person.position,
+      sendNotification({
+        recipientLoginIds: [person.loginId],
         title: "Google Meet invitation",
-        body: 'Admin scheduled "' + task.trim() + '" — ' + dueLabel + " at " + mtime + ". Join: " + meetLink,
+        body: 'Admin scheduled "' + taskTitle + '" — ' + dueLabel + " at " + mtime + ". Join: " + meetLink,
       });
     }
     if (withRemind) {
-      addNotif({
-        role: person.position,
+      sendNotification({
+        recipientLoginIds: [person.loginId],
         title: "Task reminder set",
-        body: 'Reminder for "' + t.task + '"' + (remindOn ? " on " + fmtMDate(remindOn) : due ? " before " + dueLabel : "") + ".",
+        body: 'Reminder for "' + taskTitle + '"' + (remindOn ? " on " + fmtMDate(remindOn) : due ? " before " + dueLabel : "") + ".",
         tab: person.position === "employee" ? "My Tasks" : undefined,
       });
     }
-    setLog(readAssignedTasks());
-    const details = "Task: " + task.trim() + "\nProject: " + proj + "\nAssigned to: " + person.name + "\nPriority: " + priority + (meetLink ? "\nGoogle Meet: " + meetLink : "");
+    refresh();
+    const details = "Task: " + taskTitle + "\nProject: " + proj + "\nAssigned to: " + person.name + "\nPriority: " + priority + (meetLink ? "\nGoogle Meet: " + meetLink : "");
     setResult({
-      task: t.task as string,
+      task: taskTitle,
       person,
       proj,
       meetLink,
-      calLink: withCal ? gcalLink((withMeet ? "Meeting · " : "Task · ") + task.trim() + " — " + proj, details, due, withMeet ? mtime : "", 60) : "",
+      calLink: withCal ? gcalLink((withMeet ? "Meeting · " : "Task · ") + taskTitle + " — " + proj, details, due, withMeet ? mtime : "", 60) : "",
       emailLink: ML(
-        person.email,
-        "New task: " + task.trim() + " [" + proj + "]",
-        "Hi " + person.name + ",\n\nYou have a new task on " + proj + ":\n\nTask: " + task.trim() + "\nDue: " + dueLabel + "\nPriority: " + priority + (meetLink ? "\n\nKickoff Google Meet: " + meetLink : "") + "\n\nRegards,\nAdmin\n" + CO_EMAIL,
+        person.email || "",
+        "New task: " + taskTitle + " [" + proj + "]",
+        "Hi " + person.name + ",\n\nYou have a new task on " + proj + ":\n\nTask: " + taskTitle + "\nDue: " + dueLabel + "\nPriority: " + priority + (meetLink ? "\n\nKickoff Google Meet: " + meetLink : "") + "\n\nRegards,\nAdmin\n" + CO_EMAIL,
       ),
       reminderLink: withRemind
         ? ML(
-            person.email,
-            "Reminder: " + task.trim() + " (" + proj + ")",
-            "Hi " + person.name + ',\n\nReminder for your task "' + task.trim() + '" on ' + proj + ", due " + dueLabel + "." + (remindOn ? "\nReminder date: " + fmtMDate(remindOn) : "") + "\n\nRegards,\nAdmin\n" + CO_EMAIL,
+            person.email || "",
+            "Reminder: " + taskTitle + " (" + proj + ")",
+            "Hi " + person.name + ',\n\nReminder for your task "' + taskTitle + '" on ' + proj + ", due " + dueLabel + "." + (remindOn ? "\nReminder date: " + fmtMDate(remindOn) : "") + "\n\nRegards,\nAdmin\n" + CO_EMAIL,
           )
         : "",
     });
-    setMsg('✓ "' + t.task + '" assigned to ' + person.name + " on " + proj + ".");
+    setMsg('✓ "' + taskTitle + '" assigned to ' + person.name + " on " + proj + ".");
     setTask("");
   };
 
@@ -180,7 +183,7 @@ export function ProjectTaskSection() {
             <span style={labS}>Assign to</span>
             <select style={fldS} value={who} onChange={(e) => setWho(e.target.value)}>
               {people.map((p) => (
-                <option key={p.id} value={p.id}>
+                <option key={p.partyId} value={p.partyId}>
                   {p.name} — {POS_LABEL[p.position] || p.position}
                 </option>
               ))}
@@ -281,18 +284,11 @@ export function ProjectTaskSection() {
           <THead cols={["Task", "Assigned to", "Priority", "Due", "Status"]} tpl="2fr 1.3fr 90px 110px 120px" />
           {allForProj.map((t) => (
             <TRow key={t.id} tpl="2fr 1.3fr 90px 110px 120px">
-              <span style={{ fontSize: 13, fontWeight: 500 }}>
-                {t.task as string}
-                {t.meetLink ? (
-                  <span title="Has meeting" style={{ marginLeft: 7, color: "#1A7A4A", fontSize: 11 }}>
-                    ● meet
-                  </span>
-                ) : null}
-              </span>
-              <span style={{ fontSize: 12, color: "#5C594F" }}>{t.assignedTo as string}</span>
-              <Priority p={(t.priority as string) || "Medium"} />
-              <span style={{ fontSize: 12, color: "#5C594F" }}>{t.due as string}</span>
-              <Badge s={t.status as string} />
+              <span style={{ fontSize: 13, fontWeight: 500 }}>{t.task}</span>
+              <span style={{ fontSize: 12, color: "#5C594F" }}>{t.assignedTo}</span>
+              <Priority p={t.priority || "Medium"} />
+              <span style={{ fontSize: 12, color: "#5C594F" }}>{t.due || "TBD"}</span>
+              <Badge s={t.status} />
             </TRow>
           ))}
         </TableWrap>

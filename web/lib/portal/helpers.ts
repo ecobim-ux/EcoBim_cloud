@@ -1,6 +1,3 @@
-import { ISSUES, TEAM } from "./data";
-import { readPeople, readRaisedIssues } from "./storage";
-
 export function meetCode() {
   const s = "abcdefghijklmnopqrstuvwxyz";
   const p = (n: number) => Array.from({ length: n }, () => s[Math.floor(Math.random() * 26)]).join("");
@@ -18,6 +15,14 @@ export function fmtMDate(iso: string) {
 }
 
 export const todayISO = () => new Date().toISOString().slice(0, 10);
+
+/** ISO date of the Monday of the current week. */
+export function startOfWeekISO(): string {
+  const d = new Date();
+  const dayIdx = (d.getDay() + 6) % 7; // 0 = Monday
+  d.setDate(d.getDate() - dayIdx);
+  return d.toISOString().slice(0, 10);
+}
 
 export const _p2 = (n: number) => String(n).padStart(2, "0");
 
@@ -58,20 +63,12 @@ export const CLIENT_EMAILS: Record<string, string> = {
   "Jumeirah Villa Complex": "projects@alhabtoor.com",
 };
 
-export const allIssues = () => [...readRaisedIssues(), ...ISSUES];
-
-/** Resolves a person's portal role from their display name, for the small
-    role tag shown next to names. Checks the people directory first (source
-    of truth for anyone added at runtime), then falls back to the static
-    team-lead/employee roster used by the seeded demo data. */
-export function roleKeyForName(name: string): string | null {
-  if (!name) return null;
-  if (name === "Admin" || name === "Admin User") return "admin";
-  if (name === "Pranav R.") return "teamlead";
-  const person = readPeople().find((p) => p.name === name);
-  if (person) return person.position;
-  if (TEAM.some((t) => t.name === name)) return "employee";
-  return null;
+/** "Sara Al Rashid" -> "SA" — first letter of the first and last name tokens. */
+export function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 export const ROLE_LABEL_TO_KEY: Record<string, string> = {

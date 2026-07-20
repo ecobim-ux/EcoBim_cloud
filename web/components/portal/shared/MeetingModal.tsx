@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { addMeeting, POS_LABEL, POS_ORDER, readPeople, readReach, type Meeting } from "@/lib/portal/storage";
-import { addNotif } from "@/lib/portal/storage";
+import { useEffect, useState } from "react";
+import { POS_LABEL, POS_ORDER, fetchPeople, type ApiPerson } from "@/lib/portal/people";
+import { scheduleMeeting } from "@/lib/portal/meetings";
+import { sendNotification } from "@/lib/portal/notifications";
 import { fmtMDate, meetCode } from "@/lib/portal/helpers";
 import { fldS, labS } from "@/lib/portal/style-tokens";
 import { Avi } from "../ui/Avi";
@@ -18,9 +19,16 @@ interface MeetingModalProps {
 }
 
 export function MeetingModal({ role, userName, onClose }: MeetingModalProps) {
-  const reach = readReach();
+  const [people, setPeople] = useState<ApiPerson[]>([]);
+  const [reach, setReach] = useState<Record<string, string[]>>({});
+  useEffect(() => {
+    fetchPeople().then((data) => {
+      setPeople(data.people);
+      setReach(data.reach);
+    });
+  }, []);
   const allowed = reach[role] || [];
-  const candidates = readPeople().filter((p) => allowed.includes(p.position) && p.name !== userName);
+  const candidates = people.filter((p) => allowed.includes(p.position) && p.name !== userName);
   const grouped = POS_ORDER.map((pos) => ({ pos, list: candidates.filter((c) => c.position === pos) })).filter((g) => g.list.length);
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -31,40 +39,41 @@ export function MeetingModal({ role, userName, onClose }: MeetingModalProps) {
   const [dur, setDur] = useState("30 min");
   const [sel, setSel] = useState<string[]>([]);
   const [note, setNote] = useState("");
-  const [done, setDone] = useState<Meeting & { title: string; date: string; time: string; dur: string; link: string; organizer: string; attendees: { name: string; email: string; position: string }[] } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<{ title: string; date: string; time: string; dur: string; link: string; organizer: string; note: string; attendees: { name: string; email: string; position: string }[] } | null>(null);
   const [copied, setCopied] = useState(false);
   const dialogRef = useModalA11y(onClose);
 
   const toggle = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
-  const schedule = () => {
+  const schedule = async () => {
     if (!sel.length || !title.trim()) return;
-    const attendees = candidates.filter((c) => sel.includes(c.id)).map((c) => ({ name: c.name, email: c.email, position: c.position }));
+    const attendees = candidates.filter((c) => sel.includes(c.partyId)).map((c) => ({ name: c.name, email: c.email || "", position: c.position, loginId: c.loginId }));
     const code = meetCode();
     const link = "https://meet.google.com/" + code;
-    const m = {
-      id: "MTG-" + String(Date.now()).slice(-6),
-      code,
+    setBusy(true);
+    const result = await scheduleMeeting({
       title: title.trim(),
       date,
       time,
-      dur,
-      link,
-      organizer: userName,
-      organizerRole: role,
-      attendees,
+      duration: dur,
+      joinUrl: link,
       note: note.trim(),
-      ts: Date.now(),
-    };
-    addMeeting(m);
+      attendeeLoginIds: attendees.map((a) => a.loginId),
+    });
+    setBusy(false);
+    if (!result.ok) {
+      notify(result.error || "Couldn't schedule that meeting.", "error");
+      return;
+    }
     attendees.forEach((a) =>
-      addNotif({
-        role: a.position,
+      sendNotification({
+        recipientLoginIds: [a.loginId],
         title: "Google Meet invitation",
-        body: userName + ' invited you to "' + m.title + '" — ' + fmtMDate(date) + " at " + time + " (" + dur + "). Join: " + link,
+        body: userName + ' invited you to "' + title.trim() + '" — ' + fmtMDate(date) + " at " + time + " (" + dur + "). Join: " + link,
       }),
     );
-    setDone(m);
+    setDone({ title: title.trim(), date, time, dur, link, organizer: userName, note: note.trim(), attendees });
     notify("Meeting scheduled — invite ready", "success");
   };
 
@@ -172,15 +181,15 @@ export function MeetingModal({ role, userName, onClose }: MeetingModalProps) {
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                           {g.list.map((p) => {
-                            const on = sel.includes(p.id);
+                            const on = sel.includes(p.partyId);
                             return (
                               <button
-                                key={p.id}
+                                key={p.partyId}
                                 className="meet-row"
-                                onClick={() => toggle(p.id)}
+                                onClick={() => toggle(p.partyId)}
                                 style={{ display: "flex", alignItems: "center", gap: 11, textAlign: "left", padding: "9px 12px", borderRadius: 11, border: on ? "1.5px solid #171717" : "1px solid #E5E2DA", background: "#fff", cursor: "pointer", transition: "border-color .15s" }}
                               >
-                                <Avi ini={p.ini} size={30} bg={on ? "#171717" : "#8A867C"} />
+                                <Avi ini={p.initials} size={30} bg={on ? "#171717" : "#8A867C"} />
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                   <div style={{ fontSize: 13, fontWeight: 500 }}>{p.name}</div>
                                   <div style={{ fontSize: 11.5, color: "#8A867C", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.email}</div>
@@ -217,8 +226,8 @@ export function MeetingModal({ role, userName, onClose }: MeetingModalProps) {
                 <button
                   className="btn-meet"
                   onClick={schedule}
-                  disabled={!sel.length || !title.trim()}
-                  style={{ display: "inline-flex", alignItems: "center", gap: 8, background: !sel.length || !title.trim() ? "#BDBAB2" : "#171717", color: "#fff", border: "none", borderRadius: 12, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: !sel.length || !title.trim() ? "not-allowed" : "pointer" }}
+                  disabled={busy || !sel.length || !title.trim()}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 8, background: busy || !sel.length || !title.trim() ? "#BDBAB2" : "#171717", color: "#fff", border: "none", borderRadius: 12, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: busy || !sel.length || !title.trim() ? "not-allowed" : "pointer" }}
                 >
                   <CamIcon size={15} /> Schedule &amp; invite
                 </button>

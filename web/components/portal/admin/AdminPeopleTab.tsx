@@ -1,16 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  PEOPLE_KEY,
-  POS_LABEL,
-  POS_ORDER,
-  readPeople,
-  readReach,
-  writePeople,
-  writeReach,
-  type Person,
-} from "@/lib/portal/storage";
+import { useState } from "react";
+import { POS_LABEL, POS_ORDER } from "@/lib/portal/people";
+import { createPerson, deactivatePerson, toggleReach } from "@/lib/portal/people";
+import { usePeople } from "../PeopleProvider";
 import { cardS, fldS, labS, secSub, secTitle } from "@/lib/portal/style-tokens";
 import { Avi } from "../ui/Avi";
 import { Btn } from "../ui/Btn";
@@ -19,8 +12,7 @@ import { TableWrap, THead, TRow } from "../ui/Table";
 import { PhasePill } from "../ui/icons";
 
 export function AdminPeopleTab() {
-  const [people, setPeople] = useState<Person[]>(readPeople);
-  const [reach, setReach] = useState<Record<string, string[]>>(readReach);
+  const { people, reach, refetch } = usePeople();
   const [nm, setNm] = useState("");
   const [em, setEm] = useState("");
   const [pos, setPos] = useState("employee");
@@ -28,60 +20,41 @@ export function AdminPeopleTab() {
   const [lpw, setLpw] = useState("");
   const [msg, setMsg] = useState("");
 
-  /* live-refresh when localStorage changes from another tab or component */
-  useEffect(() => {
-    const handler = (e: StorageEvent) => {
-      if (e.key === PEOPLE_KEY || !e.key) setPeople(readPeople());
-    };
-    window.addEventListener("storage", handler);
-    return () => window.removeEventListener("storage", handler);
-  }, []);
-
-  const initials = (name: string) => {
-    const w = name.trim().split(/\s+/);
-    return (((w[0] || "")[0] || "") + ((w[1] || "")[0] || (w[0] || "")[1] || "")).toUpperCase() || "?";
-  };
-
-  const addP = () => {
+  const addP = async () => {
     if (!nm.trim() || !em.trim()) {
       setMsg("⚠ Enter both a name and an email address.");
       return;
     }
-    const loginId = lid.trim() || nm.trim().split(/\s+/)[0].toLowerCase();
-    const pass = lpw.trim() || "ecobim@1";
-    const np: Person = {
-      id: "u-" + Date.now(),
-      name: nm.trim(),
-      email: em.trim(),
-      ini: initials(nm),
-      position: pos,
-      loginId,
-      pass,
-    };
-    const next = [...people, np];
-    setPeople(next);
-    writePeople(next);
-    setMsg("✓ " + np.name + " added as " + POS_LABEL[pos] + ". Login ID: " + loginId + " · Password: " + pass + ".");
+    const result = await createPerson({ name: nm.trim(), email: em.trim(), position: pos, loginId: lid.trim() || undefined, password: lpw.trim() || undefined });
+    if (!result.ok) {
+      setMsg("⚠ " + result.error);
+      return;
+    }
+    setMsg("✓ " + nm.trim() + " added as " + POS_LABEL[pos] + ". Login ID: " + result.loginId + " · Password: " + result.password + " — shown once, share it securely.");
     setNm("");
     setEm("");
     setLid("");
     setLpw("");
+    refetch();
   };
 
-  const rm = (id: string) => {
-    const next = people.filter((p) => p.id !== id);
-    setPeople(next);
-    writePeople(next);
+  const rm = async (partyId: string) => {
+    const result = await deactivatePerson(partyId);
+    if (!result.ok) {
+      setMsg("⚠ " + result.error);
+      return;
+    }
+    refetch();
   };
 
-  const toggleReach = (from: string, to: string) => {
+  const onToggleReach = async (from: string, to: string) => {
     const cur = reach[from] || [];
-    const nx = { ...reach, [from]: cur.includes(to) ? cur.filter((x) => x !== to) : [...cur, to] };
-    setReach(nx);
-    writeReach(nx);
+    const nowOn = !cur.includes(to);
+    await toggleReach(from, to, nowOn);
+    refetch();
   };
 
-  const tpl = "1.1fr 1.4fr 90px 90px 90px 1fr 76px";
+  const tpl = "1.2fr 1.5fr 90px 100px 100px 76px";
   const matrixCols = "180px repeat(" + POS_ORDER.length + ",1fr)";
 
   return (
@@ -135,23 +108,22 @@ export function AdminPeopleTab() {
         People directory <span style={{ color: "#8A867C", fontWeight: 400 }}>· {people.length}</span>
       </div>
       <TableWrap>
-        <THead cols={["Name", "Email", "Role", "Login ID", "Password", "Can invite", ""]} tpl={tpl} />
+        <THead cols={["Name", "Email", "Role", "Login ID", "Can invite", ""]} tpl={tpl} />
         {people.map((p) => (
-          <TRow key={p.id} tpl={tpl}>
+          <TRow key={p.partyId} tpl={tpl}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Avi ini={p.ini} size={26} />
+              <Avi ini={p.initials} size={26} />
               <span style={{ fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 5 }}>
                 {p.name} <RoleTag role={p.position} />
               </span>
             </div>
-            <span style={{ fontSize: 12, color: "#5C594F", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.email}</span>
+            <span style={{ fontSize: 12, color: "#5C594F", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.email || "—"}</span>
             <span>
               <PhasePill p={POS_LABEL[p.position] || p.position} />
             </span>
             <span style={{ fontSize: 12, color: "#5C594F", fontFamily: "monospace" }}>{p.loginId || "—"}</span>
-            <span style={{ fontSize: 12, color: "#5C594F", fontFamily: "monospace" }}>{p.pass || "—"}</span>
             <span style={{ fontSize: 12, color: "#5C594F" }}>{(reach[p.position] || []).map((r) => POS_LABEL[r]).join(", ") || "—"}</span>
-            <Btn v="d" onClick={() => rm(p.id)} xs={{ fontSize: 11.5, padding: "5px 10px" }}>
+            <Btn v="d" onClick={() => rm(p.partyId)} xs={{ fontSize: 11.5, padding: "5px 10px" }}>
               Remove
             </Btn>
           </TRow>
@@ -178,7 +150,7 @@ export function AdminPeopleTab() {
               return (
                 <div key={to} style={{ textAlign: "center" }}>
                   <button
-                    onClick={() => toggleReach(from, to)}
+                    onClick={() => onToggleReach(from, to)}
                     title={POS_LABEL[from] + " can invite " + POS_LABEL[to]}
                     style={{ width: 24, height: 24, borderRadius: 7, border: on ? "none" : "1.5px solid #D8D5CD", background: on ? "#171717" : "#fff", color: "#fff", cursor: "pointer", fontSize: 13, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                   >

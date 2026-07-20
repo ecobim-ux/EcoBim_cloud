@@ -1,52 +1,79 @@
 "use client";
 
-import { useState } from "react";
-import { addClientRec, addNotif, readPeople, type ClientRecord } from "@/lib/portal/storage";
+import { useEffect, useState } from "react";
+import { createClient as createClientAccount } from "@/lib/portal/clients";
+import { usePeople } from "../PeopleProvider";
 import { CO_EMAIL, LEAD_EMAIL, ML } from "@/lib/portal/mail";
-import { meetCode, todayStr } from "@/lib/portal/helpers";
+import { meetCode } from "@/lib/portal/helpers";
+import { sendNotification } from "@/lib/portal/notifications";
 import { cardS, fldS, labS, secSub, secTitle } from "@/lib/portal/style-tokens";
 import { Btn } from "../ui/Btn";
 import { CamIcon } from "../ui/icons";
 
-interface CreatedClient extends ClientRecord {
+interface CreatedClient {
   name: string;
   company: string;
   email: string;
   lead: string;
   meetLink: string;
+  loginId?: string;
+  pass?: string;
 }
 
 export function CreateClientSection() {
-  const leads = readPeople().filter((p) => p.position === "teamlead");
+  const { people, refetch } = usePeople();
+  const leads = people.filter((p) => p.position === "teamlead");
   const [cn, setCn] = useState("");
   const [cco, setCco] = useState("");
   const [cem, setCem] = useState("");
-  const [clead, setClead] = useState(leads[0] ? leads[0].name : "");
+  const [clead, setClead] = useState("");
   const [cuid, setCuid] = useState("");
   const [cpw, setCpw] = useState("");
   const [created, setCreated] = useState<CreatedClient | null>(null);
   const [cmsg, setCmsg] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const createClient = () => {
+  useEffect(() => {
+    if (!clead && leads.length > 0) setClead(leads[0].name);
+  }, [leads, clead]);
+
+  const createClient = async () => {
     if (!cn.trim() || !cem.trim()) {
       setCmsg("⚠ Enter at least a contact name and email.");
       return;
     }
-    const code = meetCode();
-    const meetLink = "https://meet.google.com/" + code;
+    const leadRec = leads.find((l) => l.name === clead);
+    setBusy(true);
+    const result = await createClientAccount({
+      name: cn.trim(),
+      company: cco.trim() || cn.trim(),
+      email: cem.trim(),
+      teamLeadLoginId: leadRec?.loginId,
+      loginId: cuid.trim() || undefined,
+      password: cpw.trim() || undefined,
+    });
+    setBusy(false);
+    if (!result.ok) {
+      setCmsg("⚠ " + result.error);
+      return;
+    }
+    const meetLink = "https://meet.google.com/" + meetCode();
     const c: CreatedClient = {
-      id: "CLT-" + String(Date.now()).slice(-6),
       name: cn.trim(),
       company: cco.trim() || cn.trim(),
       email: cem.trim(),
       lead: clead,
       meetLink,
-      loginId: cuid.trim(),
-      pass: cpw.trim(),
-      created: todayStr(),
+      loginId: result.loginId,
+      pass: result.password,
     };
-    addClientRec(c);
-    addNotif({ role: "teamlead", title: "New client assigned to you", body: "Admin assigned you as lead for " + c.company + ". Kickoff Meet: " + meetLink });
+    if (leadRec) {
+      sendNotification({
+        recipientLoginIds: [leadRec.loginId],
+        title: "New client assigned to you",
+        body: "Admin assigned you as lead for " + c.company + ". Kickoff Meet: " + meetLink,
+      });
+    }
     setCreated(c);
     setCmsg("✓ " + c.company + " created and assigned to " + (clead || "—") + "." + (c.loginId ? " Login: " + c.loginId + " / " + c.pass : ""));
     setCn("");
@@ -54,6 +81,7 @@ export function CreateClientSection() {
     setCem("");
     setCuid("");
     setCpw("");
+    refetch();
   };
 
   const clientMail = (c: CreatedClient) =>
@@ -97,7 +125,7 @@ export function CreateClientSection() {
           <select style={fldS} value={clead} onChange={(e) => setClead(e.target.value)}>
             {leads.length === 0 && <option value="">No team leads yet</option>}
             {leads.map((l) => (
-              <option key={l.id} value={l.name}>
+              <option key={l.partyId} value={l.name}>
                 {l.name}
               </option>
             ))}
@@ -111,8 +139,8 @@ export function CreateClientSection() {
           <span style={labS}>Password</span>
           <input style={fldS} value={cpw} onChange={(e) => setCpw(e.target.value)} placeholder="optional" />
         </label>
-        <Btn v="p" onClick={createClient} xs={{ height: 38, whiteSpace: "nowrap" }}>
-          + Create client
+        <Btn v="p" onClick={busy ? undefined : createClient} xs={{ height: 38, whiteSpace: "nowrap" }}>
+          {busy ? "Creating…" : "+ Create client"}
         </Btn>
       </div>
       {cmsg && <div style={{ marginTop: 13, fontSize: 12.5, fontWeight: 500, color: cmsg[0] === "⚠" ? "var(--red)" : "var(--green)" }}>{cmsg}</div>}
