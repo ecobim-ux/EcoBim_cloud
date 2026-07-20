@@ -17,6 +17,7 @@ export async function fetchTasks(): Promise<ApiTask[]> {
 
 export async function createTask(params: {
   title: string;
+  description?: string;
   assigneeLoginId: string;
   projectName?: string;
   priority?: string;

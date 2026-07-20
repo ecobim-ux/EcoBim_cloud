@@ -9,7 +9,7 @@ import { Btn } from "../ui/Btn";
 import { RoleTag } from "../ui/RoleTag";
 import { notify } from "../ui/Toast";
 
-export function IssuesTab() {
+export function IssuesTab({ userName }: { userName: string }) {
   const { people } = usePeople();
   const [list, setList] = useState<ApiIssue[]>([]);
   const [respondingId, setRespondingId] = useState<string | null>(null);
@@ -41,7 +41,7 @@ export function IssuesTab() {
     sendNotification({
       recipientLoginIds: [people.find((p) => p.position === "admin")?.loginId],
       title: "⚠ Issue escalated by Team Lead",
-      body: 'Pranav R. raised "' + title + '" (' + sev + " priority) to your attention.",
+      body: userName + ' raised "' + title + '" (' + sev + " priority) to your attention.",
       tab: "Team Management",
     });
     notify("Issue raised to Admin", "success");
@@ -60,7 +60,7 @@ export function IssuesTab() {
       sendNotification({
         recipientLoginIds: [raiserLoginId],
         title: "Team lead responded",
-        body: "Pranav R. responded to your issue: " + respText.trim(),
+        body: userName + " responded to your issue: " + respText.trim(),
         tab: raiserRole === "employee" ? "RFIs" : "Issues",
       });
     }

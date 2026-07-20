@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMenu } from "./MenuContext";
-import { useMaintenanceModal } from "./ModalContext";
 
 const NAV_LINKS = [
   { href: "#services", label: "Services" },
@@ -15,7 +15,7 @@ const NAV_LINKS = [
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const { isOpen, toggle, triggerRef } = useMenu();
-  const { open: openModal, loginBtnRef } = useMaintenanceModal();
+  const router = useRouter();
 
   useEffect(() => {
     function onScroll() {
@@ -44,8 +44,7 @@ export default function Header() {
             className="button button--solid nav__login"
             id="client-login-btn"
             aria-label="Client login"
-            ref={loginBtnRef}
-            onClick={openModal}
+            onClick={() => router.push("/portal")}
           >
             <span className="button__text">
               <span className="button__text--sp">Client Login</span>

@@ -12,7 +12,7 @@ import { notify } from "../ui/Toast";
 const PRI_RANK: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
 const PRI_COL: Record<string, string> = { High: "#C0392B", Medium: "#B8860B", Low: "#8A867C" };
 
-export function EmployeeRFIsTab() {
+export function EmployeeRFIsTab({ userName }: { userName: string }) {
   const { people } = usePeople();
   const [issues, setIssues] = useState<ApiIssue[]>([]);
   const [rfis, setRfis] = useState<ApiRfi[]>([]);
@@ -64,7 +64,7 @@ export function EmployeeRFIsTab() {
     sendNotification({
       recipientLoginIds: [people.find((p) => p.position === "teamlead")?.loginId],
       title: it.kind === "Issue" ? "Issue response submitted" : "RFI response submitted",
-      body: "Arjun Mehta responded to " + it.code + ": " + r,
+      body: userName + " responded to " + it.code + ": " + r,
       tab: "RFIs",
     });
     setFlash("✓ Response sent for " + it.code);

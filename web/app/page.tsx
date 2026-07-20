@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import "./page.css";
 import { site } from "@/lib/site-content";
 import { MenuProvider } from "@/components/home/MenuContext";
-import { ModalProvider } from "@/components/home/ModalContext";
 import Preloader from "@/components/home/Preloader";
 import Header from "@/components/home/Header";
 import MenuOverlay from "@/components/home/MenuOverlay";
@@ -14,7 +13,6 @@ import ProjectsSection from "@/components/home/ProjectsSection";
 import ApproachSection from "@/components/home/ApproachSection";
 import FaqSection from "@/components/home/FaqSection";
 import ContactSection from "@/components/home/ContactSection";
-import MaintenanceModal from "@/components/home/MaintenanceModal";
 import SiteFooter from "@/components/home/SiteFooter";
 import PageObservers from "@/components/home/PageObservers";
 
@@ -45,41 +43,38 @@ const jsonLd = {
 export default function HomePage() {
   return (
     <MenuProvider>
-      <ModalProvider>
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-        <a href="#main-content" className="skip-link">Skip to content</a>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <a href="#main-content" className="skip-link">Skip to content</a>
 
-        <Preloader />
-        <Header />
-        <MenuOverlay />
+      <Preloader />
+      <Header />
+      <MenuOverlay />
 
-        <main id="main-content">
-          <HeroSection />
+      <main id="main-content">
+        <HeroSection />
 
-          <ServicesSection />
-          <div className="section-divider reveal" />
+        <ServicesSection />
+        <div className="section-divider reveal" />
 
-          <ProcessSection />
-          <div className="section-divider reveal" />
+        <ProcessSection />
+        <div className="section-divider reveal" />
 
-          <StatsSection />
+        <StatsSection />
 
-          <ProjectsSection />
-          <div className="section-divider reveal" />
+        <ProjectsSection />
+        <div className="section-divider reveal" />
 
-          <ApproachSection />
-          <div className="section-divider reveal" />
+        <ApproachSection />
+        <div className="section-divider reveal" />
 
-          <FaqSection />
-          <div className="section-divider reveal" />
+        <FaqSection />
+        <div className="section-divider reveal" />
 
-          <ContactSection />
-        </main>
+        <ContactSection />
+      </main>
 
-        <MaintenanceModal />
-        <SiteFooter />
-        <PageObservers />
-      </ModalProvider>
+      <SiteFooter />
+      <PageObservers />
     </MenuProvider>
   );
 }

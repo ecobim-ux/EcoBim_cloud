@@ -15,6 +15,7 @@ import { Sidebar } from "../layout/Sidebar";
 import { useCollapse } from "../layout/useCollapse";
 import { useNotifications } from "../layout/useNotifications";
 import { ScheduleMeetingButton } from "../shared/ScheduleMeetingButton";
+import { UpcomingMeetings } from "../shared/UpcomingMeetings";
 import { NotifPopup } from "../ui/NotifPopup";
 import { RoleTag } from "../ui/RoleTag";
 import { StatCard } from "../ui/StatCard";
@@ -128,6 +129,7 @@ export function AdminDashboard({ onSwitch, initialTab, userName }: AdminDashboar
           <StatCard label="Unresolved Issues" value={String(openIssueCount)} sub="across all projects" color="var(--red)" />
           <StatCard label="New Requests" value={String(newReqCount)} sub="from website" color={newReqCount > 0 ? "var(--red)" : "var(--green)"} />
         </div>
+        <UpcomingMeetings />
         {tab === "All Projects" && <AllProjectsTab />}
         {tab === "Team Management" && <TeamManagementTab />}
         {tab === "Client Management" && <ClientManagementTab />}

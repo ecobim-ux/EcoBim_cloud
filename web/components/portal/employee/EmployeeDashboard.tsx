@@ -13,6 +13,7 @@ import { Sidebar } from "../layout/Sidebar";
 import { useCollapse } from "../layout/useCollapse";
 import { useNotifications } from "../layout/useNotifications";
 import { ScheduleMeetingButton } from "../shared/ScheduleMeetingButton";
+import { UpcomingMeetings } from "../shared/UpcomingMeetings";
 import { StatCard } from "../ui/StatCard";
 import { NotifPopup } from "../ui/NotifPopup";
 import { RoleTag } from "../ui/RoleTag";
@@ -131,9 +132,10 @@ export function EmployeeDashboard({ onSwitch, initialTab, userName }: EmployeeDa
           <StatCard label="Delayed Tasks" value={String(delayed)} sub="needs attention" color="var(--red)" />
           <StatCard label="Hours This Week" value={`${hoursThisWeek}h`} sub="logged since Monday" color="var(--amber)" />
         </div>
+        <UpcomingMeetings />
         {tab === "My Tasks" && <MyTasksTab tasks={tasks} userName={displayName} onRefetch={loadTasks} />}
         {tab === "Productivity" && <ProductivityTab tasks={tasks} />}
-        {tab === "RFIs" && <EmployeeRFIsTab />}
+        {tab === "RFIs" && <EmployeeRFIsTab userName={displayName} />}
         {tab === "Milestones" && <MilestonesTab tasks={tasks} />}
       </Main>
     </div>

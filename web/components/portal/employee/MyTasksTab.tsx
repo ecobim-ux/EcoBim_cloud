@@ -132,6 +132,11 @@ export function MyTasksTab({ tasks, userName, onRefetch }: MyTasksTabProps) {
             </span>
           </div>
         )}
+        {t.description && (
+          <div style={{ background: "#FAF9F6", border: "1px solid #F2F0EA", borderRadius: 12, padding: "9px 13px", marginBottom: 12, fontSize: 12.5, color: "#5C594F", lineHeight: 1.5 }}>
+            <b style={{ color: "#171717" }}>Note:</b> {t.description}
+          </div>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(110px,1fr))", gap: 14, marginBottom: 14, paddingBottom: 14, borderBottom: "1px solid #F2F0EA" }}>
           <TaskMeta label="Assignee" value={t.assignedTo} />
           <TaskMeta label="Assigned by" value={t.by} />

@@ -11,6 +11,100 @@ function parseDurationMinutes(dur: string | undefined): number {
   return /hr/i.test(dur) ? Math.round(n * 60) : Math.round(n);
 }
 
+function formatDurationLabel(mins: number): string {
+  return mins % 60 === 0 && mins >= 60 ? mins / 60 + " hr" : mins + " min";
+}
+
+export interface ApiMeeting {
+  id: string;
+  code: string;
+  title: string;
+  startsAt: string;
+  date: string;
+  time: string;
+  durationLabel: string;
+  joinUrl: string | null;
+  note: string | null;
+  organizerName: string;
+  isOrganizer: boolean;
+  attendees: string[];
+}
+
+interface MeetingRow {
+  id: string;
+  code: string;
+  title: string;
+  starts_at: Date;
+  duration_minutes: number;
+  join_url: string | null;
+  note: string | null;
+  organizer_name: string;
+  is_organizer: boolean;
+  attendees: string[];
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function formatDate(d: Date): string {
+  return String(d.getUTCDate()).padStart(2, "0") + " " + MONTHS[d.getUTCMonth()] + " " + d.getUTCFullYear();
+}
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" });
+}
+
+/** GET /api/meetings — any signed-in user; returns meetings they organized
+    or were invited to (upcoming + recently started, so nothing vanishes the
+    moment it begins). Previously nothing ever read comms.meeting back after
+    creation — not even the organizer got confirmation beyond the one-time
+    modal — so a scheduled meeting was effectively invisible everywhere the
+    instant that panel closed. */
+export async function GET() {
+  const auth = await requireSession();
+  if ("error" in auth) return auth.error;
+  const { session } = auth;
+
+  const rows = await withOrgContext(ECOBIM_ORG_ID, session.userAccountId, async (sql) => {
+    return sql<MeetingRow[]>`
+      select
+        m.id, m.code, m.title, m.starts_at, m.duration_minutes, m.join_url, m.note,
+        org.display_name as organizer_name,
+        (m.organizer_party_id = ${session.partyId}) as is_organizer,
+        coalesce((
+          select json_agg(att_party.display_name order by att_party.display_name)
+          from comms.meeting_attendee ma
+          join party.party att_party on att_party.id = ma.party_id
+          where ma.meeting_id = m.id and ma.deleted_at is null
+        ), '[]'::json) as attendees
+      from comms.meeting m
+      join party.party org on org.id = m.organizer_party_id
+      where m.organization_id = ${ECOBIM_ORG_ID} and m.deleted_at is null and m.cancelled_at is null
+        and m.starts_at >= now() - interval '2 hours'
+        and (
+          m.organizer_party_id = ${session.partyId}
+          or exists (select 1 from comms.meeting_attendee ma where ma.meeting_id = m.id and ma.party_id = ${session.partyId} and ma.deleted_at is null)
+        )
+      order by m.starts_at asc
+      limit 15
+    `;
+  });
+
+  const meetings: ApiMeeting[] = rows.map((r) => ({
+    id: r.id,
+    code: r.code,
+    title: r.title,
+    startsAt: r.starts_at.toISOString(),
+    date: formatDate(r.starts_at),
+    time: formatTime(r.starts_at),
+    durationLabel: formatDurationLabel(r.duration_minutes),
+    joinUrl: r.join_url,
+    note: r.note,
+    organizerName: r.organizer_name,
+    isOrganizer: r.is_organizer,
+    attendees: r.attendees ?? [],
+  }));
+
+  return NextResponse.json({ meetings });
+}
+
 /** POST /api/meetings — any signed-in user may schedule one, matching the
     previous behavior (any role could addMeeting()). Persists to
     comms.meeting/comms.meeting_attendee instead of localStorage, which

@@ -10,7 +10,7 @@ import { Btn } from "../ui/Btn";
 import { ReqBadge } from "../shared/ReqBadge";
 import { notify } from "../ui/Toast";
 
-export function AssignedRequestsTab() {
+export function AssignedRequestsTab({ userName }: { userName: string }) {
   const [reqs, setReqs] = useState<ApiLead[]>([]);
   const [assignEmp, setAssignEmp] = useState<Record<string, string>>({});
   const [note, setNote] = useState<Record<string, string>>({});
@@ -35,8 +35,10 @@ export function AssignedRequestsTab() {
       notify(result.error || "Couldn't assign that request.", "error");
       return;
     }
+    const taskNote = (note[id] || "").trim();
     const taskResult = await createTask({
       title: `Review estimate: ${req?.company || "Client"} — ${(req?.services || []).join(", ")}`,
+      description: taskNote || undefined,
       assigneeLoginId: emp.loginId,
     });
     if (!taskResult.ok) {
@@ -46,9 +48,10 @@ export function AssignedRequestsTab() {
     sendNotification({
       recipientLoginIds: [emp.loginId],
       title: "New task assigned by Team Lead",
-      body: `Pranav R. assigned: Review ${req?.company || "client"} estimate — ${(req?.services || []).join(", ")}.`,
+      body: `${userName} assigned: Review ${req?.company || "client"} estimate — ${(req?.services || []).join(", ")}.` + (taskNote ? ` Note: ${taskNote}` : ""),
       tab: "My Tasks",
     });
+    setNote((p) => ({ ...p, [id]: "" }));
     refresh();
   };
 

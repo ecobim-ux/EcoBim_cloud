@@ -17,11 +17,13 @@ import { useCollapse } from "../layout/useCollapse";
 import { useNotifications } from "../layout/useNotifications";
 import { ScheduleMeetingButton } from "../shared/ScheduleMeetingButton";
 import { RaiseIssueButton } from "../shared/RaiseIssueButton";
+import { UpcomingMeetings } from "../shared/UpcomingMeetings";
 import { LeadApprovalReqButton } from "../admin/LeadApprovalReqButton";
 import { NotifPopup } from "../ui/NotifPopup";
 import { RoleTag } from "../ui/RoleTag";
 import { StatCard } from "../ui/StatCard";
 import { PhasePill } from "../ui/icons";
+import { ApprovalsTab } from "./ApprovalsTab";
 import { AssignedRequestsTab } from "./AssignedRequestsTab";
 import { IssuesTab } from "./IssuesTab";
 import { LeadTasksTab } from "./LeadTasksTab";
@@ -65,7 +67,7 @@ export function TeamLeadDashboard({ onSwitch, initialTab, userName }: TeamLeadDa
   }, [loadIssues]);
 
   const notif = useNotifications();
-  const tabs = ["Overview", "My Team", "Issues", "RFIs", "Requests", "Tasks"];
+  const tabs = ["Overview", "My Team", "Issues", "RFIs", "Requests", "Tasks", "Approvals"];
   const avgPct = team.length > 0 ? Math.round(team.reduce((a, t) => a + t.pct, 0) / team.length) : 0;
   const openIssueCount = issues.filter((i) => !i.resolved).length;
   const pendingApprovalCount = approvals.filter((a) => a.stage !== "Approved" && a.stage !== "Rejected").length;
@@ -135,12 +137,14 @@ export function TeamLeadDashboard({ onSwitch, initialTab, userName }: TeamLeadDa
           <StatCard label="Pending Approvals" value={String(pendingApprovalCount)} sub="awaiting client" color="var(--amber)" />
           <StatCard label="Assigned Requests" value={String(leads.length)} sub="from admin" color="var(--green)" />
         </div>
+        <UpcomingMeetings />
         {tab === "Overview" && <TeamOverviewTab />}
         {tab === "My Team" && <MyTeamTab />}
-        {tab === "Issues" && <IssuesTab />}
+        {tab === "Issues" && <IssuesTab userName={displayName} />}
         {tab === "RFIs" && <RFIsTab extraCol={true} />}
-        {tab === "Requests" && <AssignedRequestsTab />}
-        {tab === "Tasks" && <LeadTasksTab />}
+        {tab === "Requests" && <AssignedRequestsTab userName={displayName} />}
+        {tab === "Tasks" && <LeadTasksTab userName={displayName} />}
+        {tab === "Approvals" && <ApprovalsTab />}
       </Main>
     </div>
   );

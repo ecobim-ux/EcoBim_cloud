@@ -51,7 +51,7 @@ export function ApprovalCard({ a, onChange }: ApprovalCardProps) {
       recipientLoginIds: [people.find((p) => p.position === "teamlead")?.loginId],
       title: "Updates requested by Admin",
       body: 'Admin suggested updates on "' + a.milestone + '" (' + a.proj + "): " + note.trim(),
-      tab: "Tasks",
+      tab: "Approvals",
     });
     setOpen(false);
     setNote("");

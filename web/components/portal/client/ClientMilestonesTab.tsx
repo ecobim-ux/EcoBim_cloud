@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchMilestones, type ApiMilestone } from "@/lib/portal/milestones";
 import { fetchApprovals, transitionApproval, type ApiApproval } from "@/lib/portal/approvals";
+import { fetchPeople, type ApiPerson } from "@/lib/portal/people";
+import { sendNotification } from "@/lib/portal/notifications";
 import { Btn } from "../ui/Btn";
 import { notify } from "../ui/Toast";
 
-export function ClientMilestonesTab() {
+export function ClientMilestonesTab({ userName }: { userName: string }) {
   const [milestones, setMilestones] = useState<ApiMilestone[]>([]);
   const [approvals, setApprovals] = useState<ApiApproval[]>([]);
+  const [people, setPeople] = useState<ApiPerson[]>([]);
   const [busy, setBusy] = useState<Record<string, boolean>>({});
 
   const loadApprovals = useCallback(() => {
@@ -18,19 +21,27 @@ export function ClientMilestonesTab() {
   useEffect(() => {
     fetchMilestones().then(setMilestones);
     loadApprovals();
+    fetchPeople().then((data) => setPeople(data.people));
   }, [loadApprovals]);
 
   const done = milestones.filter((m) => m.done);
   const pending = approvals.filter((a) => a.stage === "Sent to Client");
 
-  const respond = async (id: string, action: "APPROVE" | "REQUEST_REVISION") => {
-    setBusy((b) => ({ ...b, [id]: true }));
-    const result = await transitionApproval(id, action);
-    setBusy((b) => ({ ...b, [id]: false }));
+  const respond = async (a: ApiApproval, action: "APPROVE" | "REQUEST_REVISION") => {
+    setBusy((b) => ({ ...b, [a.id]: true }));
+    const result = await transitionApproval(a.id, action);
+    setBusy((b) => ({ ...b, [a.id]: false }));
     if (!result.ok) {
       notify(result.error || "Couldn't record that response.", "error");
       return;
     }
+    const admins = people.filter((p) => p.position === "admin").map((p) => p.loginId);
+    const teamLeads = people.filter((p) => p.position === "teamlead").map((p) => p.loginId);
+    const verb = action === "APPROVE" ? "approved" : "requested revisions on";
+    const title = action === "APPROVE" ? "Client approved a deliverable" : "Client requested revisions";
+    const body = userName + " " + verb + ' "' + a.milestone + '" (' + a.proj + ").";
+    sendNotification({ recipientLoginIds: admins, title, body, tab: "Client Management" });
+    sendNotification({ recipientLoginIds: teamLeads, title, body, tab: "Approvals" });
     notify(action === "APPROVE" ? "Approval recorded — thank you" : "Revision request sent to your team", action === "APPROVE" ? "success" : "info");
     loadApprovals();
   };
@@ -69,10 +80,10 @@ export function ClientMilestonesTab() {
             <p style={{ fontSize: 13, color: "#5C594F", marginBottom: 14, lineHeight: 1.55 }}>{p.proj}</p>
             <div style={{ fontSize: 12, color: "#8A867C", marginBottom: 16, fontFamily: "var(--font-instrument-sans),sans-serif" }}>Submitted: {p.submitted}</div>
             <div style={{ display: "flex", gap: 10 }}>
-              <Btn v="ok" onClick={() => respond(p.id, "APPROVE")}>
+              <Btn v="ok" onClick={() => respond(p, "APPROVE")}>
                 ✓ Approve
               </Btn>
-              <Btn v="d" onClick={() => respond(p.id, "REQUEST_REVISION")}>
+              <Btn v="d" onClick={() => respond(p, "REQUEST_REVISION")}>
                 Request Revision
               </Btn>
             </div>

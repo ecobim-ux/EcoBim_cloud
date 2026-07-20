@@ -1199,7 +1199,7 @@ img, svg { display: block; max-width: 100%; }
 /* aspect-ratio lives on the row itself (not on .gallery__big as a flex
    item) so height always scales with width, instead of a fixed height
    that gets cropped into a sliver on very wide screens. */
-.gallery { display: flex; align-items: stretch; gap: .75rem; width: 100%; aspect-ratio: 16/9; }
+.gallery { display: flex; align-items: stretch; gap: .75rem; width: 100%; max-width: 1200px; margin: 0 auto; aspect-ratio: 16/9; }
 .gallery__big {
   position: relative;
   overflow: hidden;

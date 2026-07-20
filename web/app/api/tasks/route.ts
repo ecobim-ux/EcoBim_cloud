@@ -13,6 +13,7 @@ export interface ApiTask {
   id: string;
   code: string;
   task: string;
+  description: string | null;
   del: string;
   lod: string;
   phase: string;
@@ -36,6 +37,7 @@ interface TaskRow {
   id: string;
   code: string;
   title: string;
+  description: string | null;
   deliverable_label: string | null;
   lod_label: string | null;
   milestone_label: string | null;
@@ -59,6 +61,7 @@ function toApiTask(row: TaskRow): ApiTask {
     id: row.id,
     code: row.code,
     task: row.title,
+    description: row.description,
     del: row.deliverable_label ?? "Task",
     lod: row.lod_label ?? "—",
     phase: "CD",
@@ -88,7 +91,7 @@ export async function GET() {
   const rows = await withOrgContext(ECOBIM_ORG_ID, session.userAccountId, async (sql) => {
     return sql<TaskRow[]>`
       select
-        t.id, t.code, t.title,
+        t.id, t.code, t.title, t.description,
         dt.label as deliverable_label,
         lod.label as lod_label,
         ms.label as milestone_label,
@@ -133,6 +136,7 @@ export async function POST(req: Request) {
 
   const body = (await req.json().catch(() => null)) as {
     title?: string;
+    description?: string;
     assigneeLoginId?: string;
     projectName?: string;
     priority?: string;
@@ -176,9 +180,10 @@ export async function POST(req: Request) {
       : null;
 
     const code = "TSK-" + Date.now().toString().slice(-9);
+    const description = body?.description?.trim() || null;
     const taskRows = await sql<{ id: string }[]>`
-      insert into work.task (organization_id, code, project_id, milestone_id, title, priority_code, status_code, due_on, created_by, updated_by)
-      values (${ECOBIM_ORG_ID}, ${code}, ${projectId}, ${milestoneId}, ${title}, ${priorityCode}, 'NOT_STARTED', ${body?.dueOn ?? null}, ${session.userAccountId}, ${session.userAccountId})
+      insert into work.task (organization_id, code, project_id, milestone_id, title, description, priority_code, status_code, due_on, created_by, updated_by)
+      values (${ECOBIM_ORG_ID}, ${code}, ${projectId}, ${milestoneId}, ${title}, ${description}, ${priorityCode}, 'NOT_STARTED', ${body?.dueOn ?? null}, ${session.userAccountId}, ${session.userAccountId})
       returning id
     `;
     const taskId = taskRows[0].id;

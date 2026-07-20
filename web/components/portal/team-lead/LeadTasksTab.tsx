@@ -13,7 +13,7 @@ import { DatePicker } from "../ui/DatePicker";
 import { TableWrap, THead, TRow } from "../ui/Table";
 import { notify } from "../ui/Toast";
 
-export function LeadTasksTab() {
+export function LeadTasksTab({ userName }: { userName: string }) {
   const { people } = usePeople();
   const employees = people.filter((p) => p.position === "employee");
   const [emp, setEmp] = useState("");
@@ -57,7 +57,7 @@ export function LeadTasksTab() {
     sendNotification({
       recipientLoginIds: [person.loginId],
       title: "New task assigned by Team Lead",
-      body: "Pranav R. assigned: " + task.trim() + (due ? " — due " + dueLabel : "") + " (" + priority + " priority)." + (ms ? " Linked to milestone: " + ms + "." : ""),
+      body: userName + " assigned: " + task.trim() + (due ? " — due " + dueLabel : "") + " (" + priority + " priority)." + (ms ? " Linked to milestone: " + ms + "." : ""),
       tab: "My Tasks",
     });
     refresh();

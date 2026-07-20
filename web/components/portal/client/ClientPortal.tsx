@@ -12,6 +12,7 @@ import { SearchBtn } from "../layout/SearchBtn";
 import { Sidebar } from "../layout/Sidebar";
 import { useCollapse } from "../layout/useCollapse";
 import { useNotifications } from "../layout/useNotifications";
+import { UpcomingMeetings } from "../shared/UpcomingMeetings";
 import { NotifPopup } from "../ui/NotifPopup";
 import { RoleTag } from "../ui/RoleTag";
 import { StatCard } from "../ui/StatCard";
@@ -118,8 +119,9 @@ export function ClientPortal({ onSwitch, initialTab, userName }: ClientPortalPro
           <StatCard label="Awaiting Approval" value={String(project?.pendingApprovals ?? 0)} sub="pending review" color="var(--amber)" />
           <StatCard label="Open RFIs" value={String(rfis.filter((r) => r.status === "Pending").length)} sub="response due" color="var(--red)" />
         </div>
+        <UpcomingMeetings />
         {tab === "Project Status" && <ClientStatusTab project={project} userName={displayName} />}
-        {tab === "Milestones & Approvals" && <ClientMilestonesTab />}
+        {tab === "Milestones & Approvals" && <ClientMilestonesTab userName={displayName} />}
         {tab === "Documents" && <ClientDocsTab />}
         {tab === "RFIs" && <ClientRFIsTab />}
       </Main>

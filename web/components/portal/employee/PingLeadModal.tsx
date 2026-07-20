@@ -18,11 +18,13 @@ export function PingLeadModal({ userName, onClose }: PingLeadModalProps) {
   const [desc, setDesc] = useState("");
   const [sent, setSent] = useState(false);
   const dialogRef = useModalA11y(onClose);
+  const teamLead = people.find((p) => p.position === "teamlead");
+  const teamLeadName = teamLead?.name || "your team lead";
 
   const submit = () => {
     if (!subject.trim() || !desc.trim()) return;
     sendNotification({
-      recipientLoginIds: [people.find((p) => p.position === "teamlead")?.loginId],
+      recipientLoginIds: [teamLead?.loginId],
       title: subject.trim(),
       body: userName + " pinged you — " + desc.trim(),
       tab: "Overview",
@@ -63,7 +65,7 @@ export function PingLeadModal({ userName, onClose }: PingLeadModalProps) {
           </span>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 15, fontWeight: 600 }}>{sent ? "Ping sent" : "Ping Team Lead"}</div>
-            <div style={{ fontSize: 12, color: "#8A867C" }}>{sent ? "Pranav R. has been notified" : "Send a quick note straight to Pranav R."}</div>
+            <div style={{ fontSize: 12, color: "#8A867C" }}>{sent ? teamLeadName + " has been notified" : "Send a quick note straight to " + teamLeadName}</div>
           </div>
           <button className="meet-x" onClick={onClose} style={{ width: 32, height: 32, borderRadius: 9, border: "none", background: "none", color: "#8A867C", fontSize: 20, cursor: "pointer", lineHeight: 1 }}>
             ×

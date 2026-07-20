@@ -1,5 +1,20 @@
 "use client";
 
+import type { ApiMeeting } from "@/app/api/meetings/route";
+
+export type { ApiMeeting };
+
+export async function fetchMeetings(): Promise<ApiMeeting[]> {
+  try {
+    const res = await fetch("/api/meetings");
+    if (!res.ok) return [];
+    const data = (await res.json()) as { meetings?: ApiMeeting[] };
+    return data.meetings || [];
+  } catch {
+    return [];
+  }
+}
+
 export async function scheduleMeeting(params: {
   title: string;
   date: string;
