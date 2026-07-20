@@ -1098,94 +1098,6 @@ img, svg { display: block; max-width: 100%; }
 }
 .section-divider.in-view { transform: scaleX(1); }
 
-/* ── CROSS-IMAGE CURSOR REVEAL ── */
-.cross-image {
-  position: relative;
-  overflow: hidden;
-  cursor: crosshair;
-}
-.cross-image__img {
-  position: absolute; inset: 0;
-  width: 100%; height: 100%;
-  object-fit: cover;
-  clip-path: inset(0 90% 90% 0);
-  pointer-events: none;
-  transition: clip-path .05s linear;
-  z-index: 3;
-}
-.cross-image__lines {
-  position: absolute; inset: 0;
-  pointer-events: none;
-  z-index: 4;
-  opacity: 0;
-  transition: opacity .25s;
-}
-.cross-image:hover .cross-image__lines { opacity: 1; }
-.cross-image__v {
-  position: absolute; top: 0; width: 1px; height: 100%;
-  background: rgba(var(--white), .6);
-  transform-origin: 0 0;
-  will-change: transform;
-}
-.cross-image__h {
-  position: absolute; left: 0; height: 1px; width: 100%;
-  background: rgba(var(--white), .6);
-  transform-origin: 0 0;
-  will-change: transform;
-}
-/* coords label */
-.cross-image__label {
-  position: absolute;
-  font-family: var(--font-jetbrains-mono), monospace;
-  font-size: .6rem; font-weight: 600;
-  letter-spacing: .05em; text-transform: uppercase;
-  color: rgb(var(--white));
-  background: rgb(var(--black));
-  padding: .2rem .4rem;
-  pointer-events: none;
-  z-index: 5;
-  opacity: 0;
-  transition: opacity .2s;
-  white-space: nowrap;
-}
-.cross-image:hover .cross-image__label { opacity: 1; }
-@media (hover: none) { .cross-image__lines, .cross-image__label, .cross-image__img { display: none; } }
-
-/* ── MAINTENANCE MODAL ── */
-.modal-overlay {
-  position: fixed; inset: 0;
-  background: rgba(var(--black), .6);
-  backdrop-filter: blur(.75rem);
-  -webkit-backdrop-filter: blur(.75rem);
-  z-index: 1100;
-  display: flex; align-items: center; justify-content: center;
-  opacity: 0; pointer-events: none;
-  transition: opacity .3s;
-}
-.modal-overlay.active { opacity: 1; pointer-events: all; }
-.modal-card {
-  background: rgb(var(--white));
-  border-radius: .5rem;
-  padding: 2.5rem 2rem;
-  max-width: 400px;
-  width: calc(100% - 2rem);
-  text-align: center;
-  transform: translateY(20px) scale(.97);
-  transition: transform .35s var(--ease);
-}
-.modal-overlay.active .modal-card { transform: translateY(0) scale(1); }
-.modal-icon { font-size: 2.5rem; margin-bottom: 1rem; line-height: 1; }
-.modal-title {
-  font-weight: 600; font-size: 1.25rem;
-  letter-spacing: var(--letter); line-height: 1.2;
-  margin-bottom: .75rem;
-}
-.modal-body {
-  font-size: .9rem; line-height: 1.65;
-  color: rgb(var(--grey-400));
-  margin-bottom: 1.5rem;
-}
-
 /* ── FAQ LAYOUT ── */
 @media (max-width: 760px) { .faq-layout { grid-template-columns: 1fr !important; } }
 
@@ -1195,76 +1107,112 @@ img, svg { display: block; max-width: 100%; }
 .section-head .t-body { max-width: 42em; }
 .section-head__desc--dark { color: rgba(var(--white), .6); }
 
-/* ── WORK GALLERY ── */
-/* aspect-ratio lives on the row itself (not on .gallery__big as a flex
-   item) so height always scales with width, instead of a fixed height
-   that gets cropped into a sliver on very wide screens. */
-.gallery { display: flex; align-items: stretch; gap: .75rem; width: 100%; max-width: 1200px; margin: 0 auto; aspect-ratio: 16/9; }
-.gallery__big {
+/* ── WORK GALLERY (hover accordion) ── */
+.gallery-filters {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 1.75rem;
+  row-gap: .625rem;
+  margin-bottom: 1.5rem;
+}
+.gallery-filter {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: baseline;
+  gap: .35rem;
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: rgba(var(--black), .4);
+  padding: 0 0 .5rem;
+  position: relative;
+  transition: color .25s;
+}
+.gallery-filter::after {
+  content: '';
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 1.5px;
+  background: rgb(var(--orange));
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform .3s var(--ease);
+}
+.gallery-filter.active { color: rgb(var(--black)); }
+.gallery-filter.active::after { transform: scaleX(1); }
+@media (hover: hover) { .gallery-filter:not(.active):hover { color: rgb(var(--black)); } }
+.gallery-filter__count { color: rgba(var(--black), .35); font-weight: 500; }
+.gallery-filter.active .gallery-filter__count { color: rgb(var(--orange)); }
+
+/* aspect-ratio lives on the row itself, at a capped max-width, so the row's
+   height never runs away with viewport width on very wide screens — each
+   panel's individual width (not the row height) is what animates on hover. */
+.gallery { display: flex; align-items: stretch; gap: .5rem; width: 100%; max-width: 1200px; margin: 0 auto; aspect-ratio: 16/9; }
+.gallery__panel {
   position: relative;
   overflow: hidden;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-width: 0;
   height: 100%;
   background: rgba(var(--black), .06);
+  border: none;
   border-radius: .375rem;
-  cursor: crosshair;
-}
-/* Thumbnail queue: rounded photo "pills" lined up left to right, like a slidebar */
-.gallery__thumbs {
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  gap: .5rem;
-  flex: 0 0 auto;
-  max-width: 320px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding-bottom: .625rem;
-  scrollbar-width: thin;
-  scrollbar-color: rgb(var(--orange)) transparent;
-}
-.gallery__thumbs::-webkit-scrollbar { height: 6px; }
-.gallery__thumbs::-webkit-scrollbar-track { background: rgba(var(--black), .06); border-radius: 999px; }
-.gallery__thumbs::-webkit-scrollbar-thumb {
-  background: rgb(var(--orange));
-  border-radius: 999px;
-  box-shadow: 0 0 6px rgba(var(--orange), .9), 0 0 14px rgba(var(--orange), .5);
-}
-@media (hover: hover) {
-  .gallery__thumbs::-webkit-scrollbar-thumb:hover {
-    box-shadow: 0 0 8px rgba(var(--orange), 1), 0 0 20px rgba(var(--orange), .7);
-  }
-}
-.gallery__thumb {
-  position: relative;
-  flex: 0 0 auto;
-  width: 60px;
-  height: 100%;
-  overflow: hidden;
+  padding: 0;
   cursor: pointer;
-  border-radius: 999px;
-  opacity: .55;
-  outline: 2px solid transparent;
-  outline-offset: -2px;
-  transition: opacity .25s, outline-color .25s, width .3s var(--link-handle), box-shadow .25s;
+  transition: flex-basis .6s var(--ease);
 }
-.gallery__thumb.active {
+.gallery__panel img { object-fit: cover; }
+.gallery__panel::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(var(--black), .78), rgba(var(--black), 0) 55%);
+  z-index: 1;
+}
+.gallery__collapsed-label {
+  position: absolute; inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 1.25rem;
+  z-index: 2;
   opacity: 1;
-  width: 100px;
-  outline-color: rgb(var(--orange));
-  box-shadow: 0 0 6px rgba(var(--orange), .7), 0 0 12px rgba(var(--orange), .4);
+  transition: opacity .25s;
 }
-@media (hover: hover) {
-  .gallery__thumb:hover { opacity: .85; width: 100px; }
-  .gallery__thumb.active:hover { opacity: 1; }
+.gallery__panel.active .gallery__collapsed-label { opacity: 0; }
+.gallery__collapsed-label span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: .7rem;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: rgb(var(--white));
+  white-space: nowrap;
 }
+.gallery__info {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+  padding: 1.5rem;
+  text-align: left;
+  color: rgb(var(--white));
+  z-index: 2;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .3s, transform .3s;
+  white-space: nowrap;
+}
+.gallery__panel.active .gallery__info { opacity: 1; transform: none; transition-delay: .15s; }
 @media (max-width: 760px) {
-  .gallery { flex-direction: column; aspect-ratio: auto; }
-  .gallery__big { aspect-ratio: 4/3; height: auto; }
-  .gallery__thumbs { max-width: none; }
-  .gallery__thumb { width: 50px; height: 90px; }
-  .gallery__thumb.active, .gallery__thumb:hover { width: 82px; }
+  .gallery { flex-direction: column; height: auto; aspect-ratio: auto; gap: .75rem; }
+  .gallery__panel { flex: none !important; width: 100%; height: auto; aspect-ratio: 4/3; }
+  .gallery__collapsed-label { display: none; }
+  .gallery__info { opacity: 1; transform: none; white-space: normal; }
 }
 
 /* ── HIGHLIGHTED CONTACT FORM ── */

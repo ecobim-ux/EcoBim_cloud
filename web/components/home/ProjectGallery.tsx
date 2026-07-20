@@ -1,90 +1,108 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import type { GalleryImage } from "@/lib/gallery";
 
+interface Project {
+  id: string;
+  src: string;
+  alt: string;
+  name: string;
+  tag: string;
+  category: string;
+}
+
+function dedupeProjects(images: GalleryImage[]): Project[] {
+  const seen = new Set<string>();
+  const projects: Project[] = [];
+  for (const img of images) {
+    if (seen.has(img.name)) continue;
+    seen.add(img.name);
+    projects.push({
+      id: img.name,
+      src: img.src,
+      alt: img.alt,
+      name: img.name,
+      tag: img.tag,
+      category: img.tag.split("·")[0]?.trim() || "Other",
+    });
+  }
+  return projects;
+}
+
 export default function ProjectGallery({ images }: { images: GalleryImage[] }) {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const revealImgRef = useRef<HTMLImageElement>(null);
-  const vLineRef = useRef<HTMLDivElement>(null);
-  const hLineRef = useRef<HTMLDivElement>(null);
-  const labelRef = useRef<HTMLSpanElement>(null);
+  const projects = useMemo(() => dedupeProjects(images), [images]);
+  const categories = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of projects) counts.set(p.category, (counts.get(p.category) || 0) + 1);
+    return Array.from(counts.entries());
+  }, [projects]);
 
-  if (!images.length) return null;
-  const active = images[activeIndex];
+  const [activeCategory, setActiveCategory] = useState("All");
+  const filtered = activeCategory === "All" ? projects : projects.filter((p) => p.category === activeCategory);
 
-  function onMouseMove(e: React.MouseEvent<HTMLDivElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    if (revealImgRef.current) revealImgRef.current.style.clipPath = `inset(0 ${100 - x}% ${100 - y}% 0)`;
-    if (vLineRef.current) vLineRef.current.style.transform = `translateX(${e.clientX - rect.left}px)`;
-    if (hLineRef.current) hLineRef.current.style.transform = `translateY(${e.clientY - rect.top}px)`;
-    if (labelRef.current) {
-      const px = Math.round(e.clientX - rect.left);
-      const py = Math.round(e.clientY - rect.top);
-      labelRef.current.textContent = `${px} : ${py}`;
-      let lx = e.clientX - rect.left + 10;
-      let ly = e.clientY - rect.top + 10;
-      if (lx > rect.width - 90) lx -= 110;
-      if (ly > rect.height - 30) ly -= 30;
-      labelRef.current.style.left = `${lx}px`;
-      labelRef.current.style.top = `${ly}px`;
-    }
-  }
+  const [activeId, setActiveId] = useState(projects[0]?.id);
+  const active = filtered.some((p) => p.id === activeId) ? activeId : filtered[0]?.id;
 
-  function onMouseLeave() {
-    if (revealImgRef.current) revealImgRef.current.style.clipPath = "inset(0 90% 90% 0)";
-  }
+  if (!projects.length) return null;
+
+  const activeBasis = filtered.length <= 1 ? 100 : 70;
+  const collapsedBasis = filtered.length > 1 ? (100 - activeBasis) / (filtered.length - 1) : 0;
 
   return (
-    <div className="gallery reveal">
-      <div className="gallery__big cross-image" onMouseMove={onMouseMove} onMouseLeave={onMouseLeave}>
-        <Image
-          key={active.src}
-          src={active.src}
-          alt={active.alt}
-          fill
-          sizes="(max-width: 900px) 100vw, 900px"
-          style={{ objectFit: "cover" }}
-          priority={activeIndex === 0}
-        />
-        <Image
-          key={`${active.src}-reveal`}
-          src={active.src}
-          alt=""
-          aria-hidden="true"
-          fill
-          sizes="(max-width: 900px) 100vw, 900px"
-          className="cross-image__img"
-          style={{ objectFit: "cover" }}
-          ref={revealImgRef}
-        />
-        <div className="cross-image__lines">
-          <div className="cross-image__v" ref={vLineRef} />
-          <div className="cross-image__h" ref={hLineRef} />
-        </div>
-        <span className="cross-image__label" ref={labelRef} />
-        <div className="project__info" style={{ opacity: 1, transform: "none" }}>
-          <div className="project__meta">
-            <span className="project__name">{active.name}</span>
-            <span className="project__tag">{active.tag}</span>
-          </div>
-        </div>
+    <div className="reveal">
+      <div className="gallery-filters" role="tablist" aria-label="Filter projects by category">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeCategory === "All"}
+          className={`gallery-filter${activeCategory === "All" ? " active" : ""}`}
+          onClick={() => setActiveCategory("All")}
+        >
+          All <span className="gallery-filter__count">{projects.length}</span>
+        </button>
+        {categories.map(([category, count]) => (
+          <button
+            key={category}
+            type="button"
+            role="tab"
+            aria-selected={activeCategory === category}
+            className={`gallery-filter${activeCategory === category ? " active" : ""}`}
+            onClick={() => setActiveCategory(category)}
+          >
+            {category} <span className="gallery-filter__count">{count}</span>
+          </button>
+        ))}
       </div>
-      <div className="gallery__thumbs" role="listbox" aria-label="Project photos">
-        {images.map((img, i) => (
+
+      <div className="gallery">
+        {filtered.map((p, i) => (
           <button
             type="button"
-            key={img.src}
-            className={`gallery__thumb${i === activeIndex ? " active" : ""}`}
-            onClick={() => setActiveIndex(i)}
-            role="option"
-            aria-selected={i === activeIndex}
-            aria-label={img.alt}
+            key={p.id}
+            className={`gallery__panel${p.id === active ? " active" : ""}`}
+            style={{ flexBasis: `${p.id === active ? activeBasis : collapsedBasis}%` }}
+            onMouseEnter={() => setActiveId(p.id)}
+            onFocus={() => setActiveId(p.id)}
+            onClick={() => setActiveId(p.id)}
+            aria-label={`${p.name} — ${p.tag}`}
           >
-            <Image src={img.src} alt="" fill sizes="160px" style={{ objectFit: "cover" }} />
+            <Image
+              src={p.src}
+              alt={p.alt}
+              fill
+              sizes="(max-width: 760px) 100vw, 1200px"
+              style={{ objectFit: "cover" }}
+              priority={i === 0}
+            />
+            <span className="gallery__collapsed-label" aria-hidden="true">
+              <span>{p.name}</span>
+            </span>
+            <div className="gallery__info">
+              <span className="project__tag">{p.tag}</span>
+              <span className="project__name">{p.name}</span>
+            </div>
           </button>
         ))}
       </div>
