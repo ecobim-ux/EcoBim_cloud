@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CREDENTIALS } from "@/lib/portal/auth";
 import { FloatingPaths } from "./FloatingPaths";
+
+const FEATURE_TAGS = ["ISO 19650", "LOD 100–400", "COBie"];
 
 export function LoginPage({ onLogin }: { onLogin: (role: string, name: string) => void }) {
   const [uid, setUid] = useState("");
@@ -38,14 +39,22 @@ export function LoginPage({ onLogin }: { onLogin: (role: string, name: string) =
     if (e.key === "Enter") attempt();
   };
 
+  const rise = (delay: number): React.CSSProperties => ({ animation: "portal-rise .7s var(--ease) both", animationDelay: `${delay}s` });
+
   return (
     <div className="login-grid" style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "1fr 1fr", background: "#FAF9F6" }}>
       <div className="login-left" style={{ background: "#171717", color: "#FAF9F6", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "48px 56px", position: "relative", overflow: "hidden" }}>
+        <div className="login-grid-pattern login-grid-pattern--dark" aria-hidden="true" />
+        <div
+          className="login-glow"
+          aria-hidden="true"
+          style={{ position: "absolute", top: "-16%", right: "-12%", width: 520, height: 520, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,89,73,.24) 0%, transparent 70%)", pointerEvents: "none" }}
+        />
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
           <FloatingPaths position={1} />
           <FloatingPaths position={-1} />
         </div>
-        <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 10, ...rise(0) }}>
           <span style={{ fontSize: 20, fontWeight: 500, letterSpacing: "-0.01em", fontFamily: "var(--font-newsreader), Georgia, serif" }}>
             <span style={{ color: "#FF5949", fontStyle: "italic" }}>Eco</span>BIM
           </span>
@@ -54,39 +63,32 @@ export function LoginPage({ onLogin }: { onLogin: (role: string, name: string) =
           </span>
         </div>
         <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ fontSize: "clamp(32px,3.6vw,52px)", lineHeight: 1.06, letterSpacing: "-0.02em", fontWeight: 300, fontFamily: "var(--font-newsreader),Georgia,serif", color: "#FAF9F6", marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18, ...rise(0.06) }}>
+            <span style={{ width: 6, height: 6, background: "#FF5949", flexShrink: 0 }} />
+            <span style={{ fontFamily: "var(--font-jetbrains-mono), monospace", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(250,249,246,.55)" }}>
+              Project Portal
+            </span>
+          </div>
+          <div style={{ fontSize: "clamp(32px,3.6vw,52px)", lineHeight: 1.06, letterSpacing: "-0.02em", fontWeight: 300, fontFamily: "var(--font-newsreader),Georgia,serif", color: "#FAF9F6", marginBottom: 20, ...rise(0.12) }}>
             Model first.
             <br />
             <span style={{ fontStyle: "italic" }}>Build once.</span>
           </div>
-          <p style={{ fontSize: 13.5, lineHeight: 1.75, color: "rgba(250,249,246,.6)", maxWidth: "28em", margin: 0 }}>
+          <p style={{ fontSize: 13.5, lineHeight: 1.75, color: "rgba(250,249,246,.6)", maxWidth: "28em", margin: 0, ...rise(0.18) }}>
             One place for tasks, models, RFIs and approvals — for the whole team and for our clients.
           </p>
         </div>
-        <div style={{ position: "relative", zIndex: 1, display: "flex", gap: 28, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(250,249,246,.35)", flexWrap: "wrap" }}>
-          <span>ISO 19650</span>
-          <span>LOD 100–400</span>
-          <span>COBie</span>
+        <div style={{ position: "relative", zIndex: 1, display: "flex", gap: 24, flexWrap: "wrap", ...rise(0.24) }}>
+          {FEATURE_TAGS.map((tag) => (
+            <span key={tag} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(250,249,246,.4)", fontFamily: "var(--font-jetbrains-mono), monospace" }}>
+              <span style={{ width: 4, height: 4, borderRadius: "50%", background: "rgba(255,89,73,.7)", flexShrink: 0 }} />
+              {tag}
+            </span>
+          ))}
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "72px 32px", position: "relative", minHeight: "100vh" }}>
-        <div
-          aria-hidden="true"
-          style={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none", opacity: 0.5 }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-              width: 560,
-              height: 320,
-              background: "radial-gradient(ellipse at 55% 32%,rgba(23,23,23,.07) 0,rgba(140,140,140,.02) 50%,transparent 80%)",
-              borderRadius: "50%",
-              transform: "translateY(-35%)",
-            }}
-          />
-        </div>
+        <div className="login-grid-pattern" aria-hidden="true" />
         <Link
           href="/"
           style={{
@@ -113,17 +115,31 @@ export function LoginPage({ onLogin }: { onLogin: (role: string, name: string) =
           </svg>
           Back to website
         </Link>
-        <div style={{ width: "100%", maxWidth: 390, position: "relative", zIndex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 32 }}>
-            <span style={{ fontSize: 17, fontWeight: 500, letterSpacing: "-0.01em", color: "#171717", fontFamily: "var(--font-newsreader), Georgia, serif" }}>
-              <span style={{ color: "#FF5949", fontStyle: "italic" }}>Eco</span>BIM
+        <div
+          className="login-card"
+          style={{
+            width: "100%",
+            maxWidth: 400,
+            position: "relative",
+            zIndex: 1,
+            background: "#fff",
+            border: "1px solid rgba(23,23,23,.08)",
+            borderRadius: 18,
+            padding: "40px 36px",
+            boxShadow: "0 30px 70px -30px rgba(23,23,23,.22)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 18 }}>
+            <span style={{ width: 6, height: 6, background: "#FF5949", flexShrink: 0 }} />
+            <span style={{ fontFamily: "var(--font-jetbrains-mono), monospace", fontSize: 10, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: "#8A867C" }}>
+              Portal Access
             </span>
           </div>
-          <h1 style={{ fontSize: 26, fontWeight: 700, color: "#171717", margin: 0, letterSpacing: "-0.02em", lineHeight: 1.2 }}>
-            Sign in or join now.
+          <h1 style={{ fontSize: 27, fontWeight: 700, color: "#171717", margin: 0, letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+            Sign in to continue.
           </h1>
-          <p style={{ fontSize: 14, color: "#8A867C", marginTop: 8, marginBottom: 32, lineHeight: 1.5 }}>
-            Use your portal credentials to continue.
+          <p style={{ fontSize: 14, color: "#8A867C", marginTop: 8, marginBottom: 30, lineHeight: 1.5 }}>
+            Use your portal credentials to access your dashboard.
           </p>
           <div style={{ marginBottom: 16 }}>
             <label style={{ fontSize: 10, fontWeight: 500, color: "#8A867C", letterSpacing: "0.14em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>
@@ -139,15 +155,16 @@ export function LoginPage({ onLogin }: { onLogin: (role: string, name: string) =
                 }}
                 onKeyDown={onKey}
                 placeholder="Enter your user ID"
+                className="login-input"
                 style={{
                   width: "100%",
-                  padding: "12px 12px 12px 40px",
-                  border: "1px solid " + (err ? "#C0392B" : "rgba(23,23,23,.18)"),
-                  borderRadius: 10,
+                  padding: "13px 12px 13px 40px",
+                  border: "1.5px solid " + (err ? "#C0392B" : "rgba(23,23,23,.14)"),
+                  borderRadius: 11,
                   fontSize: 15,
-                  background: "#fff",
+                  background: "#FAF9F6",
                   color: "#171717",
-                  transition: "border-color .15s",
+                  transition: "border-color .15s, box-shadow .15s",
                   boxSizing: "border-box",
                 }}
               />
@@ -157,7 +174,7 @@ export function LoginPage({ onLogin }: { onLogin: (role: string, name: string) =
               </svg>
             </div>
           </div>
-          <div style={{ marginBottom: err ? 10 : 24 }}>
+          <div style={{ marginBottom: err ? 10 : 26 }}>
             <label style={{ fontSize: 10, fontWeight: 500, color: "#8A867C", letterSpacing: "0.14em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>
               Password
             </label>
@@ -171,15 +188,16 @@ export function LoginPage({ onLogin }: { onLogin: (role: string, name: string) =
                 }}
                 onKeyDown={onKey}
                 placeholder="Enter your password"
+                className="login-input"
                 style={{
                   width: "100%",
-                  padding: "12px 52px 12px 40px",
-                  border: "1px solid " + (err ? "#C0392B" : "rgba(23,23,23,.18)"),
-                  borderRadius: 10,
+                  padding: "13px 52px 13px 40px",
+                  border: "1.5px solid " + (err ? "#C0392B" : "rgba(23,23,23,.14)"),
+                  borderRadius: 11,
                   fontSize: 15,
-                  background: "#fff",
+                  background: "#FAF9F6",
                   color: "#171717",
-                  transition: "border-color .15s",
+                  transition: "border-color .15s, box-shadow .15s",
                   boxSizing: "border-box",
                 }}
               />
@@ -206,19 +224,20 @@ export function LoginPage({ onLogin }: { onLogin: (role: string, name: string) =
           <button
             onClick={attempt}
             disabled={loading || !uid || !pw}
+            className="login-cta"
             style={{
               width: "100%",
               padding: "14px",
-              background: loading || !uid || !pw ? "rgba(23,23,23,.2)" : "#171717",
-              color: "#FAF9F6",
+              background: loading || !uid || !pw ? "rgba(23,23,23,.18)" : "#FF5949",
+              color: "#fff",
               border: "none",
               fontSize: 12,
               letterSpacing: "0.16em",
               textTransform: "uppercase",
-              fontWeight: 500,
+              fontWeight: 600,
               cursor: loading || !uid || !pw ? "not-allowed" : "pointer",
               transition: "background .15s",
-              borderRadius: 10,
+              borderRadius: 11,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -226,44 +245,13 @@ export function LoginPage({ onLogin }: { onLogin: (role: string, name: string) =
             }}
           >
             {loading && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="#FAF9F6" style={{ animation: "lp-spin 1s linear infinite" }} aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff" style={{ animation: "lp-spin 1s linear infinite" }} aria-hidden="true">
                 <path d="M12 2a10 10 0 0110 10h-2.5a7.5 7.5 0 00-7.5-7.5V2z" />
               </svg>
             )}
-            {loading ? "Signing in…" : "Continue"}
+            {loading ? "Signing in…" : "Sign in"}
           </button>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "24px 0" }}>
-            <div style={{ flex: 1, height: 1, background: "rgba(23,23,23,.1)" }} />
-            <span style={{ fontSize: 10, color: "#8A867C", letterSpacing: ".1em", textTransform: "uppercase" }}>
-              Quick access
-            </span>
-            <div style={{ flex: 1, height: 1, background: "rgba(23,23,23,.1)" }} />
-          </div>
-          <div>
-            <div style={{ fontSize: 10, color: "#8A867C", fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 6, opacity: 0.4 }}>
-              Demo credentials — click to fill
-            </div>
-            <div style={{ border: "1px solid #E5E2DA", borderRadius: 10, overflow: "hidden", opacity: 0.4 }}>
-              {CREDENTIALS.map((c, i) => (
-                <div
-                  key={c.id}
-                  onClick={() => {
-                    setUid(c.id);
-                    setPw(c.pass);
-                    setErr("");
-                  }}
-                  className="trow"
-                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "11px 14px", borderTop: i === 0 ? "none" : "1px solid #E5E2DA", cursor: "pointer", background: "#fff", transition: "background .12s" }}
-                >
-                  <span style={{ fontSize: 13, fontWeight: 500, color: "#171717" }}>{c.display}</span>
-                  <span style={{ fontSize: 11, color: "#8A867C", fontFamily: "monospace", letterSpacing: ".02em" }}>
-                    {c.id} · {c.pass}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <p style={{ marginTop: 24, fontSize: 12, color: "#8A867C", lineHeight: 1.6, textAlign: "center" }}>
+          <p style={{ marginTop: 22, fontSize: 12, color: "#8A867C", lineHeight: 1.6, textAlign: "center" }}>
             By signing in you agree to our{" "}
             <a href="/terms" target="_blank" rel="noopener" style={{ color: "#171717", textDecoration: "underline", textUnderlineOffset: 3 }}>
               Terms

@@ -66,6 +66,26 @@
 @keyframes modal-in { from { opacity: 0; transform: scale(.95); } to { opacity: 1; transform: scale(1); } }
 .portal-root input:focus, .portal-root textarea:focus, .portal-root select:focus { border-color: #171717 !important; outline: none; box-shadow: none; }
 @media (max-width: 900px) { .login-grid { grid-template-columns: 1fr !important; } .login-left { display: none !important; } }
+
+/* ── LOGIN PAGE ── */
+.login-grid-pattern {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(23, 23, 23, .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 23, 23, .045) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 40%, transparent 90%);
+}
+.login-grid-pattern--dark {
+  background-image:
+    linear-gradient(rgba(250, 249, 246, .05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(250, 249, 246, .05) 1px, transparent 1px);
+}
+.portal-root .login-input:focus { border-color: #FF5949 !important; box-shadow: 0 0 0 3px rgba(255, 89, 73, .14) !important; }
+.login-cta:hover:not(:disabled) { background: #E8432F !important; }
+.login-card { animation: portal-rise .7s var(--ease) both; }
+@keyframes login-glow-drift { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-3%, 2%) scale(1.05); } }
+.login-glow { animation: login-glow-drift 14s ease-in-out infinite; }
 @keyframes fp-draw { 0% { stroke-dashoffset: 1500; } 100% { stroke-dashoffset: -400; } }
 @keyframes lp-spin { to { transform: rotate(360deg); } }
 @keyframes boot-fade { to { opacity: 1; } }
