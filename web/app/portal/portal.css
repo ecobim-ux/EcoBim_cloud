@@ -83,6 +83,8 @@
 }
 .portal-root .login-input:focus { border-color: #FF5949 !important; box-shadow: 0 0 0 3px rgba(255, 89, 73, .14) !important; }
 .login-cta:hover:not(:disabled) { background: #E8432F !important; }
+.role-card:hover { border-color: #FF5949 !important; background: #fff !important; box-shadow: 0 10px 24px -14px rgba(23, 23, 23, .18); transform: translateY(-1px); }
+.role-card:active { transform: translateY(0); }
 .login-card { animation: portal-rise .7s var(--ease) both; }
 @keyframes login-glow-drift { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-3%, 2%) scale(1.05); } }
 .login-glow { animation: login-glow-drift 14s ease-in-out infinite; }
