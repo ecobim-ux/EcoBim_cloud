@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import { POS_LABEL, POS_ORDER } from "@/lib/portal/people";
-import { createPerson, deactivatePerson, toggleReach } from "@/lib/portal/people";
+import { assignTeamLead, createPerson, deactivatePerson, toggleReach } from "@/lib/portal/people";
 import { usePeople } from "../PeopleProvider";
 import { cardS, fldS, labS, secSub, secTitle } from "@/lib/portal/style-tokens";
 import { Avi } from "../ui/Avi";
 import { Btn } from "../ui/Btn";
-import { RoleTag } from "../ui/RoleTag";
 import { TableWrap, THead, TRow } from "../ui/Table";
 import { PhasePill } from "../ui/icons";
 
@@ -19,32 +18,49 @@ export function AdminPeopleTab() {
   const [lid, setLid] = useState("");
   const [lpw, setLpw] = useState("");
   const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [busyIds, setBusyIds] = useState<Record<string, boolean>>({});
+  const [leadBusyIds, setLeadBusyIds] = useState<Record<string, boolean>>({});
+
+  const teamLeads = people.filter((p) => p.position === "teamlead");
 
   const addP = async () => {
+    if (busy) return;
     if (!nm.trim() || !em.trim()) {
       setMsg("⚠ Enter both a name and an email address.");
       return;
     }
-    const result = await createPerson({ name: nm.trim(), email: em.trim(), position: pos, loginId: lid.trim() || undefined, password: lpw.trim() || undefined });
-    if (!result.ok) {
-      setMsg("⚠ " + result.error);
-      return;
+    setBusy(true);
+    try {
+      const result = await createPerson({ name: nm.trim(), email: em.trim(), position: pos, loginId: lid.trim() || undefined, password: lpw.trim() || undefined });
+      if (!result.ok) {
+        setMsg("⚠ " + result.error);
+        return;
+      }
+      setMsg("✓ " + nm.trim() + " added as " + POS_LABEL[pos] + ". Login ID: " + result.loginId + " · Password: " + result.password + " — shown once, share it securely.");
+      setNm("");
+      setEm("");
+      setLid("");
+      setLpw("");
+      refetch();
+    } finally {
+      setBusy(false);
     }
-    setMsg("✓ " + nm.trim() + " added as " + POS_LABEL[pos] + ". Login ID: " + result.loginId + " · Password: " + result.password + " — shown once, share it securely.");
-    setNm("");
-    setEm("");
-    setLid("");
-    setLpw("");
-    refetch();
   };
 
   const rm = async (partyId: string) => {
-    const result = await deactivatePerson(partyId);
-    if (!result.ok) {
-      setMsg("⚠ " + result.error);
-      return;
+    if (busyIds[partyId]) return;
+    setBusyIds((p) => ({ ...p, [partyId]: true }));
+    try {
+      const result = await deactivatePerson(partyId);
+      if (!result.ok) {
+        setMsg("⚠ " + result.error);
+        return;
+      }
+      refetch();
+    } finally {
+      setBusyIds((p) => ({ ...p, [partyId]: false }));
     }
-    refetch();
   };
 
   const onToggleReach = async (from: string, to: string) => {
@@ -54,7 +70,22 @@ export function AdminPeopleTab() {
     refetch();
   };
 
-  const tpl = "1.2fr 1.5fr 90px 100px 100px 76px";
+  const onAssignLead = async (partyId: string, teamLeadLoginId: string) => {
+    if (!teamLeadLoginId || leadBusyIds[partyId]) return;
+    setLeadBusyIds((p) => ({ ...p, [partyId]: true }));
+    try {
+      const result = await assignTeamLead(partyId, teamLeadLoginId);
+      if (!result.ok) {
+        setMsg("⚠ " + result.error);
+        return;
+      }
+      refetch();
+    } finally {
+      setLeadBusyIds((p) => ({ ...p, [partyId]: false }));
+    }
+  };
+
+  const tpl = "1.1fr 1.4fr 90px 150px 100px 100px 76px";
   const matrixCols = "180px repeat(" + POS_ORDER.length + ",1fr)";
 
   return (
@@ -95,8 +126,8 @@ export function AdminPeopleTab() {
               <input style={fldS} value={lpw} onChange={(e) => setLpw(e.target.value)} placeholder="defaults to ecobim@1" />
             </label>
             <div />
-            <Btn v="p" onClick={addP} xs={{ height: 38, whiteSpace: "nowrap" }}>
-              + Add person
+            <Btn v="p" onClick={addP} disabled={busy} xs={{ height: 38, whiteSpace: "nowrap" }}>
+              {busy ? "Adding…" : "+ Add person"}
             </Btn>
           </div>
         </div>
@@ -108,23 +139,38 @@ export function AdminPeopleTab() {
         People directory <span style={{ color: "#8A867C", fontWeight: 400 }}>· {people.length}</span>
       </div>
       <TableWrap>
-        <THead cols={["Name", "Email", "Role", "Login ID", "Can invite", ""]} tpl={tpl} />
+        <THead cols={["Name", "Email", "Role", "Team Lead", "Login ID", "Can invite", ""]} tpl={tpl} />
         {people.map((p) => (
           <TRow key={p.partyId} tpl={tpl}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Avi ini={p.initials} size={26} />
-              <span style={{ fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 5 }}>
-                {p.name} <RoleTag role={p.position} />
-              </span>
+              <Avi ini={p.initials} size={26} role={p.position} />
+              <span style={{ fontSize: 13, fontWeight: 500 }}>{p.name}</span>
             </div>
             <span style={{ fontSize: 12, color: "#5C594F", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.email || "—"}</span>
             <span>
               <PhasePill p={POS_LABEL[p.position] || p.position} />
             </span>
+            {p.position === "employee" ? (
+              <select
+                style={{ ...fldS, height: 30, fontSize: 12, padding: "4px 8px" }}
+                value={p.teamLeadLoginId || ""}
+                disabled={!!leadBusyIds[p.partyId]}
+                onChange={(e) => onAssignLead(p.partyId, e.target.value)}
+              >
+                <option value="">Unassigned</option>
+                {teamLeads.map((t) => (
+                  <option key={t.partyId} value={t.loginId}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span style={{ fontSize: 12, color: "#8A867C" }}>—</span>
+            )}
             <span style={{ fontSize: 12, color: "#5C594F", fontFamily: "monospace" }}>{p.loginId || "—"}</span>
             <span style={{ fontSize: 12, color: "#5C594F" }}>{(reach[p.position] || []).map((r) => POS_LABEL[r]).join(", ") || "—"}</span>
-            <Btn v="d" onClick={() => rm(p.partyId)} xs={{ fontSize: 11.5, padding: "5px 10px" }}>
-              Remove
+            <Btn v="d" onClick={() => rm(p.partyId)} disabled={!!busyIds[p.partyId]} xs={{ fontSize: 11.5, padding: "5px 10px" }}>
+              {busyIds[p.partyId] ? "…" : "Remove"}
             </Btn>
           </TRow>
         ))}

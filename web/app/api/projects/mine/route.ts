@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole, requireSession } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
+import { withErrorLogging } from "@/lib/server/api-error";
 
 export interface ApiProjectPhase {
   label: string;
@@ -50,6 +51,7 @@ interface PhaseRow {
     hardcoded "Dubai Marina Developments / 68%" numbers, which were shown
     identically to every client regardless of who actually logged in. */
 export async function GET() {
+  return withErrorLogging("GET /api/projects/mine", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -117,4 +119,5 @@ export async function GET() {
   };
 
   return NextResponse.json({ project: apiProject });
+  });
 }

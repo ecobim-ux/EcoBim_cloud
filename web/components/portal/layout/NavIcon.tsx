@@ -81,6 +81,13 @@ export function NavIcon({ name, size = 16, color = "currentColor" }: NavIconProp
         <line x1="12" y1="17" x2="12.01" y2="17" />
       </svg>
     ),
+    "Issues & RFIs": (
+      <svg {...s}>
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+    ),
     "All Projects": (
       <svg {...s}>
         <rect x="2" y="3" width="20" height="14" rx="2" />
@@ -96,7 +103,7 @@ export function NavIcon({ name, size = 16, color = "currentColor" }: NavIconProp
         <path d="M22 21v-1.5a3 3 0 00-3-3h-1" />
       </svg>
     ),
-    "Client Management": (
+    "Freelance Management": (
       <svg {...s}>
         <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
         <circle cx="9" cy="7" r="4" />

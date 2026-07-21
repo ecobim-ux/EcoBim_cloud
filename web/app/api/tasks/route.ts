@@ -1,8 +1,22 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { requireRole, requireSession } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
 import { formatShortDate, PRIORITY_CODE_TO_LABEL, PRIORITY_LABEL_TO_CODE, STATUS_CODE_TO_LABEL } from "@/lib/server/task-mapping";
+import { withErrorLogging } from "@/lib/server/api-error";
+import { checkRateLimit } from "@/lib/server/rate-limit";
+import { parseBody, requiredString } from "@/lib/server/validate";
+
+const CreateTaskSchema = z.object({
+  title: requiredString("A task title is required.", 200),
+  assigneeLoginId: requiredString("An assignee is required."),
+  description: z.string().trim().max(2000).optional(),
+  projectName: z.string().trim().max(200).optional(),
+  priority: z.string().optional(),
+  dueOn: z.string().optional(),
+  milestoneLabel: z.string().trim().max(200).optional(),
+});
 
 export interface ApiTaskRecord {
   hours: number;
@@ -84,6 +98,7 @@ function toApiTask(row: TaskRow): ApiTask {
 
 /** GET /api/tasks — employees only ever see their own; admin/team lead see everyone's. */
 export async function GET() {
+  return withErrorLogging("GET /api/tasks", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -119,14 +134,17 @@ export async function GET() {
       where t.deleted_at is null
         and (${session.role === "employee"} = false or ta.assignee_person_id = ${session.partyId})
       order by (t.due_on is null), t.due_on, t.created_at
+      limit 500
     `;
   });
 
   return NextResponse.json({ tasks: rows.map(toApiTask) });
+  });
 }
 
 /** POST /api/tasks — admin and team lead only; employees cannot assign tasks to themselves or others. */
 export async function POST(req: Request) {
+  return withErrorLogging("POST /api/tasks", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -134,26 +152,20 @@ export async function POST(req: Request) {
   const forbidden = requireRole(session, ["admin", "teamlead"]);
   if (forbidden) return forbidden;
 
-  const body = (await req.json().catch(() => null)) as {
-    title?: string;
-    description?: string;
-    assigneeLoginId?: string;
-    projectName?: string;
-    priority?: string;
-    dueOn?: string;
-    milestoneLabel?: string;
-  } | null;
+  const parsed = await parseBody(req, CreateTaskSchema);
+  if ("error" in parsed) return parsed.error;
+  const body = parsed.data;
 
-  const title = body?.title?.trim();
-  const assigneeLoginId = body?.assigneeLoginId?.trim();
-  const projectName = body?.projectName?.trim();
-  if (!title || !assigneeLoginId) {
-    return NextResponse.json({ error: "A task title and an assignee are required." }, { status: 400 });
-  }
+  const title = body.title;
+  const assigneeLoginId = body.assigneeLoginId;
+  const projectName = body.projectName;
 
-  const priorityCode = body?.priority ? PRIORITY_LABEL_TO_CODE[body.priority] ?? "MEDIUM" : "MEDIUM";
+  const priorityCode = body.priority ? PRIORITY_LABEL_TO_CODE[body.priority] ?? "MEDIUM" : "MEDIUM";
 
   const result = await withOrgContext(ECOBIM_ORG_ID, session.userAccountId, async (sql) => {
+    const limit = await checkRateLimit(sql, session.userAccountId, "CREATE_TASK", { windowMinutes: 10, maxAttempts: 60 });
+    if (limit) return { error: "rate_limited" as const, response: limit };
+
     const assigneeRows = await sql<{ party_id: string }[]>`
       select ua.party_id from iam.user_account ua where ua.login_id = ${assigneeLoginId} and ua.deleted_at is null
     `;
@@ -170,7 +182,7 @@ export async function POST(req: Request) {
     const projectId = projectRows[0]?.id;
     if (!projectId) return { error: "That project couldn't be found." as const };
 
-    const milestoneLabel = body?.milestoneLabel?.trim();
+    const milestoneLabel = body.milestoneLabel;
     const milestoneId = milestoneLabel
       ? (
           await sql<{ id: string }[]>`
@@ -180,10 +192,10 @@ export async function POST(req: Request) {
       : null;
 
     const code = "TSK-" + Date.now().toString().slice(-9);
-    const description = body?.description?.trim() || null;
+    const description = body.description || null;
     const taskRows = await sql<{ id: string }[]>`
       insert into work.task (organization_id, code, project_id, milestone_id, title, description, priority_code, status_code, due_on, created_by, updated_by)
-      values (${ECOBIM_ORG_ID}, ${code}, ${projectId}, ${milestoneId}, ${title}, ${description}, ${priorityCode}, 'NOT_STARTED', ${body?.dueOn ?? null}, ${session.userAccountId}, ${session.userAccountId})
+      values (${ECOBIM_ORG_ID}, ${code}, ${projectId}, ${milestoneId}, ${title}, ${description}, ${priorityCode}, 'NOT_STARTED', ${body.dueOn ?? null}, ${session.userAccountId}, ${session.userAccountId})
       returning id
     `;
     const taskId = taskRows[0].id;
@@ -196,6 +208,10 @@ export async function POST(req: Request) {
     return { taskId };
   });
 
-  if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 });
+  if ("error" in result) {
+    if (result.error === "rate_limited") return result.response;
+    return NextResponse.json({ error: result.error }, { status: 400 });
+  }
   return NextResponse.json({ id: result.taskId }, { status: 201 });
+  });
 }

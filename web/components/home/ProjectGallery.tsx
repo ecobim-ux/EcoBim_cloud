@@ -17,10 +17,10 @@ function dedupeProjects(images: GalleryImage[]): Project[] {
   const seen = new Set<string>();
   const projects: Project[] = [];
   for (const img of images) {
-    if (seen.has(img.name)) continue;
-    seen.add(img.name);
+    if (seen.has(img.id)) continue;
+    seen.add(img.id);
     projects.push({
-      id: img.name,
+      id: img.id,
       src: img.src,
       alt: img.alt,
       name: img.name,

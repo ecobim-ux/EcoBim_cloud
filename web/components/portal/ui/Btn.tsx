@@ -9,6 +9,7 @@ interface BtnProps {
   onClick?: () => void;
   children?: ReactNode;
   full?: boolean;
+  disabled?: boolean;
   style?: CSSProperties;
   /** Accepted for parity with the original app, which passes a prop named
       `xs` at ~85% of call sites — but this component only ever reads `style`,
@@ -17,7 +18,7 @@ interface BtnProps {
   xs?: CSSProperties;
 }
 
-export function Btn({ v = "p", onClick, children, full, style: xs = {} }: BtnProps) {
+export function Btn({ v = "p", onClick, children, full, disabled, style: xs = {} }: BtnProps) {
   const base: CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
@@ -30,7 +31,8 @@ export function Btn({ v = "p", onClick, children, full, style: xs = {} }: BtnPro
     whiteSpace: "nowrap",
     width: full ? "100%" : undefined,
     justifyContent: full ? "center" : undefined,
-    cursor: "pointer",
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.6 : 1,
   };
   const vs: Record<BtnVariant, CSSProperties> = {
     p: { background: "var(--ink)", color: "var(--surface)", padding: "9px 20px" },
@@ -45,6 +47,7 @@ export function Btn({ v = "p", onClick, children, full, style: xs = {} }: BtnPro
       style={{ ...base, ...vs[v], ...xs }}
       className={`btn-${v}`}
       onClick={onClick}
+      disabled={disabled}
     >
       {children}
     </button>

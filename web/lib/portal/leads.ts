@@ -1,16 +1,21 @@
 "use client";
 
 import type { ApiLead } from "@/app/api/leads/route";
+import { reportFetchError } from "./fetch-error";
 
 export type { ApiLead };
 
 export async function fetchLeads(): Promise<ApiLead[]> {
   try {
     const res = await fetch("/api/leads");
-    if (!res.ok) return [];
+    if (!res.ok) {
+      reportFetchError("requests", new Error(`HTTP ${res.status}`));
+      return [];
+    }
     const data = (await res.json()) as { leads?: ApiLead[] };
     return data.leads || [];
-  } catch {
+  } catch (err) {
+    reportFetchError("requests", err);
     return [];
   }
 }

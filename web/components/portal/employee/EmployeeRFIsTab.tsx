@@ -65,7 +65,7 @@ export function EmployeeRFIsTab({ userName }: { userName: string }) {
       recipientLoginIds: [people.find((p) => p.position === "teamlead")?.loginId],
       title: it.kind === "Issue" ? "Issue response submitted" : "RFI response submitted",
       body: userName + " responded to " + it.code + ": " + r,
-      tab: "RFIs",
+      tab: "Issues & RFIs",
     });
     setFlash("✓ Response sent for " + it.code);
     notify("Response sent", "success");

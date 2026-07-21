@@ -1,16 +1,21 @@
 "use client";
 
 import type { ApiRfi } from "@/app/api/rfis/route";
+import { reportFetchError } from "./fetch-error";
 
 export type { ApiRfi };
 
 export async function fetchRfis(): Promise<ApiRfi[]> {
   try {
     const res = await fetch("/api/rfis");
-    if (!res.ok) return [];
+    if (!res.ok) {
+      reportFetchError("RFIs", new Error(`HTTP ${res.status}`));
+      return [];
+    }
     const data = (await res.json()) as { rfis?: ApiRfi[] };
     return data.rfis || [];
-  } catch {
+  } catch (err) {
+    reportFetchError("RFIs", err);
     return [];
   }
 }

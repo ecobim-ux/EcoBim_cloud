@@ -23,7 +23,7 @@ async function generate(key: ReportKey) {
     const projects = await fetchProjects();
     downloadCsv(
       `progress-report-${stamp}.csv`,
-      ["Project", "Code", "Client", "Phase", "Progress %", "Team Size", "Open Issues", "Open RFIs", "Lead", "Start", "End"],
+      ["Project", "Code", "Freelance", "Phase", "Progress %", "Team Size", "Open Issues", "Open RFIs", "Lead", "Start", "End"],
       projects.map((p) => [p.name, p.code, p.client, p.phaseLabel, p.progress, p.teamSize, p.issueCount, p.openRfis, p.lead, p.start, p.end]),
     );
     return;

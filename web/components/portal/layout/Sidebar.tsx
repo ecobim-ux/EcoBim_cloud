@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Fragment } from "react";
 import { ROLE_LABEL_TO_KEY } from "@/lib/portal/helpers";
 import { Avi } from "../ui/Avi";
-import { RoleTag } from "../ui/RoleTag";
 import { NavIcon } from "./NavIcon";
 
 interface SidebarProps {
@@ -82,7 +81,7 @@ export function Sidebar({
           ) : (
             <div>
               <div style={{ fontSize: 17, fontWeight: 500, letterSpacing: "-0.01em", color: "#171717", fontFamily: "var(--font-newsreader), Georgia, serif" }}>
-                <span style={{ color: "#3A6B47", fontStyle: "italic" }}>Eco</span>BIM
+                <span style={{ color: "#FF5949", fontStyle: "italic" }}>Eco</span>BIM
               </div>
               <div style={{ fontSize: 9.5, color: "#8A867C", letterSpacing: "0.14em", marginTop: 3, textTransform: "uppercase" }}>
                 Project Portal
@@ -177,12 +176,10 @@ export function Sidebar({
         </div>
         <div style={{ padding: collapsed ? "12px 8px" : "12px 14px", borderTop: "1px solid #E5E2DA", display: "flex", flexDirection: "column", gap: 8, alignItems: collapsed ? "center" : "stretch" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: collapsed ? "center" : "flex-start" }}>
-            <Avi ini={userIni} />
+            <Avi ini={userIni} role={ROLE_LABEL_TO_KEY[role]} />
             {!collapsed && (
               <div>
-                <div style={{ fontSize: 12.5, fontWeight: 500, lineHeight: 1.3, display: "flex", alignItems: "center", gap: 5 }}>
-                  {userName} <RoleTag role={ROLE_LABEL_TO_KEY[role]} />
-                </div>
+                <div style={{ fontSize: 12.5, fontWeight: 500, lineHeight: 1.3 }}>{userName}</div>
                 <div style={{ fontSize: 10.5, color: "#8A867C" }}>{role}</div>
               </div>
             )}
@@ -237,6 +234,20 @@ export function Sidebar({
               </Fragment>
             )}
           </button>
+          {!collapsed && (
+            <button
+              aria-label="Log out on every device"
+              style={{ width: "100%", background: "none", color: "#8A867C", border: "none", padding: "4px 4px 0", fontSize: 10.5, fontWeight: 500, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2 }}
+              onClick={() => {
+                fetch("/api/auth/logout-everywhere", { method: "POST" }).catch(() => {
+                  /* best-effort — client state clears via onSwitch regardless */
+                });
+                onSwitch();
+              }}
+            >
+              Log out everywhere
+            </button>
+          )}
         </div>
       </nav>
     </Fragment>

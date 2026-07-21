@@ -4,7 +4,7 @@
    issues,rfis}.ts. What remains here is either pure UI styling config
    (STATUS_DOT/BADGE_CFG) or domains not yet wired to a backend (MILESTONES'
    static label list still backs the milestone-linking picker in
-   LeadTasksTab; DOCS is the Client Portal's Documents tab, which has no
+   TeamTasksSection; DOCS is the Freelance Portal's Documents tab, which has no
    real document-storage backend yet). */
 
 export interface Milestone {

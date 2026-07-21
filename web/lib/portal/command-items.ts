@@ -35,10 +35,9 @@ export const _CMD_ITEMS: Record<string, CmdGroup[]> = {
       items: [
         { label: "Overview", icon: "◈", tab: "Overview" },
         { label: "My Team", icon: "👥", tab: "My Team" },
-        { label: "Issues", icon: "⚠", tab: "Issues" },
-        { label: "RFIs", icon: "⊕", tab: "RFIs" },
+        { label: "Issues & RFIs", icon: "⚠", tab: "Issues & RFIs" },
         { label: "Requests", icon: "📩", tab: "Requests" },
-        { label: "Tasks", icon: "🛠", tab: "Tasks" },
+        { label: "Team Tasks", icon: "🛠", tab: "Overview" },
       ],
     },
     {
@@ -55,7 +54,7 @@ export const _CMD_ITEMS: Record<string, CmdGroup[]> = {
       items: [
         { label: "All Projects", icon: "🏗", tab: "All Projects" },
         { label: "Team Management", icon: "👥", tab: "Team Management" },
-        { label: "Client Management", icon: "🤝", tab: "Client Management" },
+        { label: "Freelance Management", icon: "🤝", tab: "Freelance Management" },
         { label: "Reports", icon: "📈", tab: "Reports" },
         { label: "Management", icon: "⚙", tab: "Management" },
       ],

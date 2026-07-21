@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { requireRole, requireSession } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
+import { z } from "zod";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
+import { withErrorLogging } from "@/lib/server/api-error";
+import { parseBody, requiredString } from "@/lib/server/validate";
 
 export interface ApiPerson {
   partyId: string;
@@ -12,11 +15,22 @@ export interface ApiPerson {
   position: string;
   loginId: string;
   status: string;
+  /** Employees only — the team lead they currently report to, if assigned. */
+  teamLeadLoginId: string | null;
+  teamLeadName: string | null;
 }
 
 const POSITION_TO_ROLE: Record<string, string> = { admin: "ADMIN", teamlead: "TEAM_LEAD", employee: "EMPLOYEE", client: "CLIENT" };
 const ROLE_TO_POSITION: Record<string, string> = { ADMIN: "admin", TEAM_LEAD: "teamlead", EMPLOYEE: "employee", CLIENT: "client" };
 const POSITIONS = Object.keys(POSITION_TO_ROLE);
+
+const CreatePersonSchema = z.object({
+  name: requiredString("A name is required.", 200),
+  email: z.string().trim().toLowerCase().email("Enter a valid email address."),
+  position: z.string().refine((p) => POSITIONS.includes(p), { message: "A valid position is required." }),
+  loginId: z.string().trim().optional(),
+  password: z.string().optional(),
+});
 
 function initialsOf(name: string): string {
   const w = name.trim().split(/\s+/);
@@ -30,6 +44,8 @@ interface PersonRow {
   login_id: string;
   status: string;
   role_code: string;
+  team_lead_login_id: string | null;
+  team_lead_name: string | null;
 }
 
 interface PolicyRow {
@@ -47,6 +63,7 @@ interface PolicyRow {
     admin table used to show every password in plaintext, which the audit
     flagged as critical; passwords are now shown once, at creation time. */
 export async function GET() {
+  return withErrorLogging("GET /api/people", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -55,14 +72,27 @@ export async function GET() {
     const people = await sql<PersonRow[]>`
       select p.id as party_id, p.display_name, ua.login_id, ua.status,
              (select cp.value from party.contact_point cp where cp.party_id = p.id and cp.kind = 'EMAIL' and cp.is_primary and cp.deleted_at is null limit 1) as email,
-             min(r.code) as role_code
+             min(r.code) as role_code,
+             lead_ua.login_id as team_lead_login_id,
+             lead_party.display_name as team_lead_name
       from party.party p
       join iam.user_account ua on ua.party_id = p.id and ua.deleted_at is null
       join iam.user_role ur on ur.user_account_id = ua.id
       join iam.role r on r.id = ur.role_id
+      left join hr.employee emp on emp.person_id = p.id and emp.deleted_at is null
+      left join lateral (
+        select t.lead_employee_id from hr.team_member tm
+        join hr.team t on t.id = tm.team_id and t.deleted_at is null
+        where tm.employee_id = emp.id and tm.left_on is null and tm.deleted_at is null
+        limit 1
+      ) team_link on true
+      left join hr.employee lead_emp on lead_emp.id = team_link.lead_employee_id and lead_emp.deleted_at is null
+      left join party.party lead_party on lead_party.id = lead_emp.person_id
+      left join iam.user_account lead_ua on lead_ua.party_id = lead_party.id and lead_ua.deleted_at is null
       where p.organization_id = ${ECOBIM_ORG_ID} and p.deleted_at is null
-      group by p.id, p.display_name, ua.login_id, ua.status
+      group by p.id, p.display_name, ua.login_id, ua.status, lead_ua.login_id, lead_party.display_name
       order by p.display_name
+      limit 500
     `;
     const policies = await sql<PolicyRow[]>`
       select fr.code as from_code, tr.code as to_code
@@ -90,12 +120,15 @@ export async function GET() {
     position: ROLE_TO_POSITION[p.role_code] ?? p.role_code.toLowerCase(),
     loginId: p.login_id,
     status: p.status,
+    teamLeadLoginId: p.team_lead_login_id,
+    teamLeadName: p.team_lead_name,
   }));
   if (session.role === "client") {
     apiPeople = apiPeople.filter((p) => p.position !== "client");
   }
 
   return NextResponse.json({ people: apiPeople, reach });
+  });
 }
 
 /** POST /api/people — admin only. Creates a real party+user_account+bcrypt
@@ -103,33 +136,27 @@ export async function GET() {
     replacing the old flow that only ever wrote a plaintext password to
     localStorage. */
 export async function POST(req: Request) {
+  return withErrorLogging("POST /api/people", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
   const forbidden = requireRole(session, ["admin", "teamlead"]);
   if (forbidden) return forbidden;
 
-  const body = (await req.json().catch(() => null)) as {
-    name?: string;
-    email?: string;
-    position?: string;
-    loginId?: string;
-    password?: string;
-  } | null;
+  const parsed = await parseBody(req, CreatePersonSchema);
+  if ("error" in parsed) return parsed.error;
+  const body = parsed.data;
 
-  const name = body?.name?.trim();
-  const email = body?.email?.trim();
-  const position = body?.position;
-  if (!name || !email || !position || !POSITIONS.includes(position)) {
-    return NextResponse.json({ error: "A name, email and valid position are required." }, { status: 400 });
-  }
+  const name = body.name;
+  const email = body.email;
+  const position = body.position;
   // Team leads can only add employees to their own team — admin-only
   // positions and client accounts stay gated to admin.
   if (session.role === "teamlead" && position !== "employee") {
     return NextResponse.json({ error: "Team leads can only add employees." }, { status: 403 });
   }
-  const loginId = body?.loginId?.trim() || name.split(/\s+/)[0].toLowerCase();
-  const password = body?.password?.trim() || "ecobim@1";
+  const loginId = body.loginId?.trim() || name.split(/\s+/)[0].toLowerCase();
+  const password = body.password?.trim() || "ecobim@1";
   if (password.length < 4) {
     return NextResponse.json({ error: "Password must be at least 4 characters." }, { status: 400 });
   }
@@ -182,4 +209,5 @@ export async function POST(req: Request) {
 
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json(result, { status: 201 });
+  });
 }

@@ -1,8 +1,25 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { z } from "zod";
 import { requireRole, requireSession } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
+import { withErrorLogging } from "@/lib/server/api-error";
+import { parseBody, requiredString } from "@/lib/server/validate";
+
+const CreateClientSchema = z
+  .object({
+    name: requiredString("A contact name is required.", 200),
+    email: z.string().trim().toLowerCase().email("Enter a valid email address."),
+    company: z.string().trim().max(200).optional(),
+    teamLeadLoginId: z.string().trim().optional(),
+    loginId: z.string().trim().optional(),
+    password: z.string().optional(),
+  })
+  .refine((data) => !data.loginId || (data.password?.trim().length ?? 0) >= 4, {
+    message: "Password must be at least 4 characters.",
+    path: ["password"],
+  });
 
 /** POST /api/clients — admin only. Onboards a real client: a company party,
     a contact-person party (+ optional real login), and a crm.client_account
@@ -13,34 +30,23 @@ import { ECOBIM_ORG_ID } from "@/lib/server/org";
     portal has somewhere real to attach milestones/RFIs/approvals to as work
     starts — deliberately minimal (no phases/milestones fabricated). */
 export async function POST(req: Request) {
+  return withErrorLogging("POST /api/clients", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
   const forbidden = requireRole(session, ["admin"]);
   if (forbidden) return forbidden;
 
-  const body = (await req.json().catch(() => null)) as {
-    name?: string;
-    company?: string;
-    email?: string;
-    teamLeadLoginId?: string;
-    loginId?: string;
-    password?: string;
-  } | null;
+  const parsed = await parseBody(req, CreateClientSchema);
+  if ("error" in parsed) return parsed.error;
+  const body = parsed.data;
 
-  const name = body?.name?.trim();
-  const email = body?.email?.trim();
-  const teamLeadLoginId = body?.teamLeadLoginId?.trim();
-  if (!name || !email) {
-    return NextResponse.json({ error: "A contact name and email are required." }, { status: 400 });
-  }
-  const company = body?.company?.trim() || name;
-
-  const loginId = body?.loginId?.trim();
-  const password = body?.password?.trim();
-  if (loginId && (!password || password.length < 4)) {
-    return NextResponse.json({ error: "Password must be at least 4 characters." }, { status: 400 });
-  }
+  const name = body.name;
+  const email = body.email;
+  const teamLeadLoginId = body.teamLeadLoginId;
+  const company = body.company || name;
+  const loginId = body.loginId;
+  const password = body.password?.trim();
 
   const result = await withOrgContext(ECOBIM_ORG_ID, session.userAccountId, async (sql) => {
     let ownerEmployeeId: string | null = null;
@@ -81,7 +87,7 @@ export async function POST(req: Request) {
     if (loginId && password) {
       const roleRows = await sql<{ id: string }[]>`select id from iam.role where code = 'CLIENT' and organization_id is null`;
       const roleId = roleRows[0]?.id;
-      if (!roleId) return { error: "Client role isn't configured." as const };
+      if (!roleId) return { error: "Freelance role isn't configured." as const };
 
       const secretHash = await bcrypt.hash(password, 12);
       const userRows = await sql<{ id: string }[]>`
@@ -114,4 +120,5 @@ export async function POST(req: Request) {
 
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json(result, { status: 201 });
+  });
 }

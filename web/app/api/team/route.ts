@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireRole, requireSession } from "@/lib/server/auth-guard";
+import { requireRole, requireSession, resolveEmployeeId } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
 import { STATUS_CODE_TO_LABEL } from "@/lib/server/task-mapping";
+import { withErrorLogging } from "@/lib/server/api-error";
 
 export interface ApiTeamMember {
   partyId: string;
@@ -56,16 +57,19 @@ function formatLastActive(d: Date | null): string | null {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ", " + time;
 }
 
-/** GET /api/team — admin + team lead. Real per-employee roster with their
-    current project/task/progress/status/hours-this-week/last-active —
-    replaces the static 4-person TEAM array in lib/portal/data.ts, which
-    never reflected anyone added via the real "Add person" flow and never
-    changed regardless of real task/time-entry activity. */
+/** GET /api/team — admin sees every employee in the org; team lead sees
+    only the employees actually assigned to their own team (hr.team_member)
+    — previously this showed every employee to every team lead regardless
+    of who they actually led, since the team-assignment tables existed but
+    were never read. */
 export async function GET() {
+  return withErrorLogging("GET /api/team", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const forbidden = requireRole(auth.session, ["admin", "teamlead"]);
   if (forbidden) return forbidden;
+
+  const callerEmployeeId = auth.session.role === "teamlead" ? await resolveEmployeeId(auth.session.partyId) : null;
 
   const rows = await withOrgContext(ECOBIM_ORG_ID, auth.session.userAccountId, async (sql) => {
     return sql<TeamRow[]>`
@@ -114,7 +118,17 @@ export async function GET() {
         limit 1
       ) dl on true
       where e.organization_id = ${ECOBIM_ORG_ID} and e.deleted_at is null
+        and (
+          ${auth.session.role === "admin"}
+          or exists (
+            select 1 from hr.team_member tm
+            join hr.team t on t.id = tm.team_id and t.deleted_at is null
+            where tm.employee_id = e.id and tm.left_on is null and tm.deleted_at is null
+              and t.lead_employee_id = ${callerEmployeeId}
+          )
+        )
       order by emp_party.display_name
+      limit 500
     `;
   });
 
@@ -136,4 +150,5 @@ export async function GET() {
   }));
 
   return NextResponse.json({ team });
+  });
 }

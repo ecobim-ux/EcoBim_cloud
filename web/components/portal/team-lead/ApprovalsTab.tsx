@@ -15,11 +15,11 @@ export function ApprovalsTab() {
     <div>
       <div style={{ marginBottom: 20 }}>
         <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Approval Requests</h3>
-        <p style={{ fontSize: 13, color: "#5C594F" }}>Track every deliverable you&apos;ve submitted for review, from admin review through client sign-off.</p>
+        <p style={{ fontSize: 13, color: "#5C594F" }}>Track every deliverable you&apos;ve submitted for review, from admin review through freelance sign-off.</p>
       </div>
       {approvals.length === 0 ? (
         <div style={{ background: "#fff", border: "1px dashed #E5E2DA", borderRadius: 12, padding: "40px", textAlign: "center", color: "#8A867C", fontSize: 14 }}>
-          No approval requests yet — use &ldquo;Request Client Approval&rdquo; above to start one.
+          No approval requests yet — use &ldquo;Request Freelance Approval&rdquo; above to start one.
         </div>
       ) : (
         approvals.map((a) => (
@@ -31,7 +31,7 @@ export function ApprovalsTab() {
                   {a.proj} · {a.client} · submitted {a.submitted}
                 </div>
               </div>
-              <AprStepper stage={a.stage || "Sent to Client"} />
+              <AprStepper stage={a.stage || "Sent to Freelance"} />
             </div>
             {a.leadNote && (
               <div style={{ marginTop: 12, fontSize: 12.5, color: "#5C594F", background: "#FAF9F6", border: "1px solid #F2F0EA", borderRadius: 9, padding: "9px 12px" }}>
@@ -43,7 +43,7 @@ export function ApprovalsTab() {
                 <b style={{ color: "#B7770D" }}>Admin requested updates:</b> {a.adminNote}
               </div>
             )}
-            {a.stage === "Approved" && <div style={{ marginTop: 12, fontSize: 12.5, color: "#1A7A4A", fontWeight: 700 }}>✓ Approved by client</div>}
+            {a.stage === "Approved" && <div style={{ marginTop: 12, fontSize: 12.5, color: "#1A7A4A", fontWeight: 700 }}>✓ Approved by freelance</div>}
             {a.history && a.history.length > 0 && (
               <div style={{ marginTop: 13, borderTop: "1px dashed #E5E2DA", paddingTop: 11, display: "flex", flexDirection: "column", gap: 6 }}>
                 {a.history.map((h, i) => (

@@ -15,7 +15,7 @@ export async function createClient(params: {
       body: JSON.stringify(params),
     });
     const data = (await res.json().catch(() => ({}))) as { error?: string; loginId?: string; password?: string };
-    if (!res.ok) return { ok: false, error: data.error || "Couldn't create that client." };
+    if (!res.ok) return { ok: false, error: data.error || "Couldn't create that freelancer." };
     return { ok: true, loginId: data.loginId, password: data.password };
   } catch {
     return { ok: false, error: "Couldn't reach the server. Please try again." };

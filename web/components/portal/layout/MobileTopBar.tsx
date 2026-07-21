@@ -15,7 +15,7 @@ export function MobileTopBar({ onMenuOpen, role }: MobileTopBarProps) {
         </svg>
       </button>
       <span className="mobile-topbar-brand">
-        <span style={{ color: "#3A6B47", fontStyle: "italic" }}>Eco</span>BIM
+        <span style={{ color: "#FF5949", fontStyle: "italic" }}>Eco</span>BIM
       </span>
       <span style={{ fontSize: 10.5, color: "#8A867C", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 500 }}>
         {role}

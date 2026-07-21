@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
+import { withErrorLogging } from "@/lib/server/api-error";
 
 /** POST /api/notifications/read — body {id} marks one delivery read (only if
     it belongs to the caller); no body marks every unread delivery of the
     caller's read. Ownership is enforced by scoping every update to
     user_account_id = session.userAccountId, never by trusting the id alone. */
 export async function POST(req: Request) {
+  return withErrorLogging("POST /api/notifications/read", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -32,4 +34,5 @@ export async function POST(req: Request) {
   });
 
   return NextResponse.json({ ok: true });
+  });
 }

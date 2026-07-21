@@ -2,6 +2,9 @@ import "server-only";
 import { cookies } from "next/headers";
 import { withOrgContext } from "./db-context";
 import { ECOBIM_ORG_ID } from "./org";
+import { roleCodeToKey } from "./role-mapping";
+
+export { roleCodeToKey } from "./role-mapping";
 
 export const SESSION_COOKIE = "ecobim_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
@@ -60,6 +63,17 @@ export async function destroySession(): Promise<void> {
   jar.delete(SESSION_COOKIE);
 }
 
+/** Revokes every active session for this account (not just the current
+    device) — there was previously no way for a user to end a session left
+    open elsewhere short of waiting out the flat 7-day cookie. */
+export async function destroyAllSessions(userAccountId: string): Promise<void> {
+  await withOrgContext(ECOBIM_ORG_ID, userAccountId, async (sql) => {
+    await sql`update iam.auth_session set revoked_at = now() where user_account_id = ${userAccountId} and revoked_at is null`;
+  });
+  const jar = await cookies();
+  jar.delete(SESSION_COOKIE);
+}
+
 export async function getSession(): Promise<PortalSession | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
@@ -93,20 +107,4 @@ export async function getSession(): Promise<PortalSession | null> {
       role: roleCodeToKey(row.role_code),
     };
   });
-}
-
-/** iam.role.code (ADMIN/TEAM_LEAD/EMPLOYEE/CLIENT) -> portal role key */
-export function roleCodeToKey(code: string): string {
-  switch (code) {
-    case "ADMIN":
-      return "admin";
-    case "TEAM_LEAD":
-      return "teamlead";
-    case "EMPLOYEE":
-      return "employee";
-    case "CLIENT":
-      return "client";
-    default:
-      return code.toLowerCase();
-  }
 }

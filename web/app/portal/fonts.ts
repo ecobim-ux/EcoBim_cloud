@@ -1,9 +1,9 @@
-import { Instrument_Sans, JetBrains_Mono, Newsreader } from "next/font/google";
+import { Inter, JetBrains_Mono, Newsreader } from "next/font/google";
 
-export const instrumentSans = Instrument_Sans({
+export const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-instrument-sans",
+  weight: ["300", "400", "500", "600"],
+  variable: "--font-inter",
   display: "swap",
 });
 

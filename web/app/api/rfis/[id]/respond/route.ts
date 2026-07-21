@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
+import { withErrorLogging } from "@/lib/server/api-error";
 
 /** POST /api/rfis/:id/respond — anyone signed in may respond (matches the
     previous behavior of the shared status/response mechanism); records the
     response and marks the RFI Responded unless it's already Closed. */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  return withErrorLogging("POST /api/rfis/:id/respond", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -29,4 +31,5 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   });
 
   return NextResponse.json({ ok: true });
+  });
 }

@@ -89,7 +89,7 @@ export function MyTasksTab({ tasks, userName, onRefetch }: MyTasksTabProps) {
         recipientLoginIds: [people.find((p) => p.position === "teamlead")?.loginId],
         title: "Task completed",
         body: userName + ' completed "' + t.task + '" — ' + t.logged + "h logged.",
-        tab: "Tasks",
+        tab: "Overview",
       });
       notify("Task marked complete", "success");
       setFlash("✓ Task completed");
@@ -138,7 +138,7 @@ export function MyTasksTab({ tasks, userName, onRefetch }: MyTasksTabProps) {
           </div>
         )}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(110px,1fr))", gap: 14, marginBottom: 14, paddingBottom: 14, borderBottom: "1px solid #F2F0EA" }}>
-          <TaskMeta label="Assignee" value={t.assignedTo} />
+          <TaskMeta label="Project" value={t.project} />
           <TaskMeta label="Assigned by" value={t.by} />
           <TaskMeta label="Due" value={t.due || "—"} />
           <TaskMeta label="LOD / Phase" value={t.lod + " · " + t.phase} />
@@ -200,7 +200,7 @@ export function MyTasksTab({ tasks, userName, onRefetch }: MyTasksTabProps) {
             style={{ background: "#fff", color: "#171717", border: "1.5px solid #171717", borderRadius: 12, padding: "7px 14px", fontSize: 13, fontWeight: 500, transition: "background .15s" }}
             onClick={() => setPing(true)}
           >
-            Ping Team Lead
+            Raise Issue to Team Lead
           </button>
         </div>
       </div>

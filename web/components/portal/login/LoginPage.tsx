@@ -47,7 +47,7 @@ export function LoginPage({ onLogin }: { onLogin: (role: string, name: string) =
         </div>
         <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 20, fontWeight: 500, letterSpacing: "-0.01em", fontFamily: "var(--font-newsreader), Georgia, serif" }}>
-            <span style={{ color: "#3A6B47", fontStyle: "italic" }}>Eco</span>BIM
+            <span style={{ color: "#FF5949", fontStyle: "italic" }}>Eco</span>BIM
           </span>
           <span style={{ fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(250,249,246,.4)", marginLeft: 4 }}>
             Portal
@@ -62,14 +62,6 @@ export function LoginPage({ onLogin }: { onLogin: (role: string, name: string) =
           <p style={{ fontSize: 13.5, lineHeight: 1.75, color: "rgba(250,249,246,.6)", maxWidth: "28em", margin: 0 }}>
             One place for tasks, models, RFIs and approvals — for the whole team and for our clients.
           </p>
-          <div style={{ marginTop: 28, paddingTop: 20, borderTop: "1px solid rgba(250,249,246,.12)" }}>
-            <p style={{ fontSize: 13.5, fontFamily: "var(--font-newsreader),Georgia,serif", fontStyle: "italic", fontWeight: 300, color: "rgba(250,249,246,.75)", lineHeight: 1.6, margin: 0 }}>
-              &quot;This platform has helped us resolve conflicts and serve clients faster than ever.&quot;
-            </p>
-            <p style={{ fontSize: 11, fontWeight: 500, letterSpacing: ".04em", color: "rgba(250,249,246,.4)", marginTop: 10, margin: "10px 0 0" }}>
-              — Ravi K., Senior BIM Lead
-            </p>
-          </div>
         </div>
         <div style={{ position: "relative", zIndex: 1, display: "flex", gap: 28, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(250,249,246,.35)", flexWrap: "wrap" }}>
           <span>ISO 19650</span>
@@ -124,7 +116,7 @@ export function LoginPage({ onLogin }: { onLogin: (role: string, name: string) =
         <div style={{ width: "100%", maxWidth: 390, position: "relative", zIndex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 32 }}>
             <span style={{ fontSize: 17, fontWeight: 500, letterSpacing: "-0.01em", color: "#171717", fontFamily: "var(--font-newsreader), Georgia, serif" }}>
-              <span style={{ color: "#3A6B47", fontStyle: "italic" }}>Eco</span>BIM
+              <span style={{ color: "#FF5949", fontStyle: "italic" }}>Eco</span>BIM
             </span>
           </div>
           <h1 style={{ fontSize: 26, fontWeight: 700, color: "#171717", margin: 0, letterSpacing: "-0.02em", lineHeight: 1.2 }}>

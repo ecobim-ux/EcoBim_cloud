@@ -46,6 +46,7 @@ export function ProjectTaskSection() {
   const [tasks, setTasks] = useState<ApiTask[]>([]);
   const [result, setResult] = useState<CreateResult | null>(null);
   const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(() => {
     fetchTasks().then(setTasks);
@@ -76,11 +77,13 @@ export function ProjectTaskSection() {
   const dueLabel = due ? fmtMDate(due) : "TBD";
 
   const create = async () => {
+    if (busy) return;
     if (!task.trim() || !person) {
       setMsg("⚠ Pick a project, a person and enter a task.");
       return;
     }
 
+    setBusy(true);
     try {
       const res = await fetch("/api/tasks", {
         method: "POST",
@@ -95,6 +98,8 @@ export function ProjectTaskSection() {
     } catch {
       setMsg("⚠ Couldn't reach the server. Please try again.");
       return;
+    } finally {
+      setBusy(false);
     }
 
     const meetLink = withMeet ? "https://meet.google.com/" + meetCode() : "";
@@ -224,8 +229,8 @@ export function ProjectTaskSection() {
             </label>
           )}
         </div>
-        <Btn v="p" onClick={create} xs={{ whiteSpace: "nowrap" }}>
-          + Create &amp; assign task
+        <Btn v="p" onClick={create} disabled={busy} xs={{ whiteSpace: "nowrap" }}>
+          {busy ? "Creating…" : "+ Create & assign task"}
         </Btn>
         {msg && <div style={{ marginTop: 13, fontSize: 12.5, fontWeight: 500, color: msg[0] === "⚠" ? "var(--red)" : "var(--green)" }}>{msg}</div>}
         {result && (

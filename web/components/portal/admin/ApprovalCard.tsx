@@ -20,7 +20,7 @@ export function ApprovalCard({ a, onChange }: ApprovalCardProps) {
   const [note, setNote] = useState("");
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const stage = a.stage || "Sent to Client";
+  const stage = a.stage || "Sent to Freelance";
 
   const reminderMail = ML(
     a.clientEmail || "",
@@ -35,7 +35,7 @@ export function ApprovalCard({ a, onChange }: ApprovalCardProps) {
 
   const run = async (action: Parameters<typeof transitionApproval>[1], n?: string) => {
     setBusy(true);
-    const result = await transitionApproval(a.id, action, n);
+    const result = await transitionApproval(a.id, action, n, a.rowVersion);
     setBusy(false);
     if (!result.ok) {
       notify(result.error || "Couldn't complete that action.", "error");
@@ -135,7 +135,7 @@ export function ApprovalCard({ a, onChange }: ApprovalCardProps) {
           ) : (
             <Fragment>
               <Btn v="p" xs={{ padding: "7px 14px", fontSize: 12 }} onClick={sendClient}>
-                ✓ Approve &amp; send to client
+                ✓ Approve &amp; send to freelance
               </Btn>
               <Btn v="s" xs={{ padding: "6px 14px", fontSize: 12 }} onClick={() => setOpen(true)}>
                 Suggest updates to lead
@@ -146,13 +146,13 @@ export function ApprovalCard({ a, onChange }: ApprovalCardProps) {
           <Fragment>
             <span style={{ fontSize: 12, color: "#B7770D", fontWeight: 600 }}>⏳ Awaiting team lead update</span>
             <Btn v="s" xs={{ padding: "6px 14px", fontSize: 12 }} onClick={sendClient}>
-              Send to client anyway
+              Send to freelance anyway
             </Btn>
           </Fragment>
         )}
-        {stage === "Sent to Client" && (
+        {stage === "Sent to Freelance" && (
           <Fragment>
-            <span style={{ fontSize: 12, color: "#1A56C4", fontWeight: 600 }}>↗ Awaiting client approval</span>
+            <span style={{ fontSize: 12, color: "#1A56C4", fontWeight: 600 }}>↗ Awaiting freelance approval</span>
             {a.lastReminder ? (
               <span style={{ fontSize: 12, color: "#1A7A4A", fontWeight: 600 }}>✓ Reminder sent</span>
             ) : (
@@ -169,7 +169,7 @@ export function ApprovalCard({ a, onChange }: ApprovalCardProps) {
             </Btn>
           </Fragment>
         )}
-        {stage === "Approved" && <span style={{ fontSize: 12.5, color: "#1A7A4A", fontWeight: 700 }}>✓ Approved by client</span>}
+        {stage === "Approved" && <span style={{ fontSize: 12.5, color: "#1A7A4A", fontWeight: 700 }}>✓ Approved by freelance</span>}
         {busy && <span style={{ fontSize: 11.5, color: "#8A867C" }}>Saving…</span>}
       </div>
       {a.history && a.history.length > 0 && (

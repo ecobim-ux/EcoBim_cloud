@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
+import { withErrorLogging } from "@/lib/server/api-error";
 
 export interface ApiMilestone {
   id: string;
@@ -29,6 +30,7 @@ function monthYear(d: Date): string {
     the org's primary project (matches the single-project scope the rest
     of the portal already assumes). */
 export async function GET() {
+  return withErrorLogging("GET /api/milestones", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -64,4 +66,5 @@ export async function GET() {
   }));
 
   return NextResponse.json({ milestones });
+  });
 }

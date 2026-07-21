@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { requireRole, requireSession } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
+import { withErrorLogging } from "@/lib/server/api-error";
 
 /** POST /api/issues/:id/resolve — admin/team lead only. */
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  return withErrorLogging("POST /api/issues/:id/resolve", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -24,4 +26,5 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   });
 
   return NextResponse.json({ ok: true });
+  });
 }

@@ -45,6 +45,29 @@ for f in migrations/00*.sql; do psql -d ecobim -v ON_ERROR_STOP=1 -f "$f"; done
 For production adopt a migration tool (Flyway / Sqitch / dbmate) and register
 0001–0017 as the baseline; **never run 0018 in production**.
 
+## Down migrations
+
+`0019` and `0020` ship a paired `NNNN_name.down.sql` — apply in strict reverse
+file order (highest number first) to roll back. Each down file only reverses
+the objects its own up migration created, so it's only safe to run once every
+*later* migration's down has already run.
+
+`0001`–`0018` don't have down scripts yet. They weren't added retroactively
+here on purpose: hand-deriving them from schema-owning migrations that other
+migrations build on top of (FKs, RLS policies, triggers, views) is easy to
+get subtly wrong without actually round-tripping up→down→up against a
+disposable database to confirm it — and this project has no scratch database
+to validate that against (it runs against a single Supabase-hosted instance).
+A wrong rollback script is worse than none: it gives false confidence and
+can fail or corrupt state exactly when someone reaches for it in an
+incident. Before relying on down migrations for 0001–0018, either:
+
+1. Write them the same way as 0019/0020 (reverse only what that file added,
+   in reverse statement order) and validate the full up→down→up cycle
+   against a disposable database, or
+2. Adopt one of the migration tools above — they generate and manage this
+   correctly instead of it being hand-maintained SQL.
+
 ## Application connection contract
 
 The app connects as a member of the `ecobim_app` role and sets per

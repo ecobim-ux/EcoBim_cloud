@@ -75,5 +75,5 @@ export const ROLE_LABEL_TO_KEY: Record<string, string> = {
   Admin: "admin",
   "Team Lead": "teamlead",
   Employee: "employee",
-  Client: "client",
+  Freelance: "client",
 };

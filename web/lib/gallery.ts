@@ -3,6 +3,11 @@ import path from "node:path";
 import { site } from "./site-content";
 
 export interface GalleryImage {
+  /** Stable per-project key (the folder name, e.g. "Project 3") — photos
+      were previously grouped by matching the display `name` string across
+      duplicate rows, which breaks if two projects ever share a caption.
+      This is the real identifier; `name` is just the caption. */
+  id: string;
   src: string;
   alt: string;
   name: string;
@@ -24,48 +29,56 @@ const IMAGE_EXTENSIONS = new Set([".webp", ".jpg", ".jpeg", ".png"]);
  */
 const STATIC_FALLBACK_GALLERY: GalleryImage[] = [
   {
+    id: "Project 3",
     src: "/images/Project%203/velodrome%20abu%20dhabi.webp",
     alt: "Velodrome Abu Dhabi — Sports · LOD 350",
     name: "Velodrome Abu Dhabi",
     tag: "Sports · LOD 350",
   },
   {
+    id: "Project 2",
     src: "/images/Project%202/Doha_Port___Grand_Cruise_Terminal_3.png",
     alt: "Doha Port Cruise Terminal — Infrastructure · MEP",
     name: "Doha Port Cruise Terminal",
     tag: "Infrastructure · MEP",
   },
   {
+    id: "Project 2",
     src: "/images/Project%202/Doha_Port___Grand_Cruise_Terminal.webp",
     alt: "Doha Port Cruise Terminal — additional photo 2",
     name: "Doha Port Cruise Terminal",
     tag: "Infrastructure · MEP",
   },
   {
+    id: "Project 1",
     src: "/images/Project%201/Sports%20Hotel%20Abu%20Dhabi.webp",
     alt: "Sports Hotel Abu Dhabi — Hospitality · BIM Coordination",
     name: "Sports Hotel Abu Dhabi",
     tag: "Hospitality · BIM Coordination",
   },
   {
+    id: "Project 5",
     src: "/images/Project%205/T2_Kempegowda_International_Airport_2.png",
     alt: "T2 Kempegowda Airport — Transport · LOD 350",
     name: "T2 Kempegowda Airport",
     tag: "Transport · LOD 350",
   },
   {
+    id: "Project 5",
     src: "/images/Project%205/T2_Kempegowda_International_Airport.webp",
     alt: "T2 Kempegowda Airport — additional photo 2",
     name: "T2 Kempegowda Airport",
     tag: "Transport · LOD 350",
   },
   {
+    id: "Project 4",
     src: "/images/Project%204/Timor%20Leste%20Education%20Institute_1.png",
     alt: "Timor Leste Education Institute — Education · BIM Coordination",
     name: "Timor Leste Education Institute",
     tag: "Education · BIM Coordination",
   },
   {
+    id: "Project 4",
     src: "/images/Project%204/Timor%20Leste%20Education%20Institute.webp",
     alt: "Timor Leste Education Institute — additional photo 2",
     name: "Timor Leste Education Institute",
@@ -100,9 +113,11 @@ function scanProjectGallery(): GalleryImage[] {
     }
     files.sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
 
+    const folderId = path.basename(folder);
     files.forEach((file, i) => {
-      const relPath = path.posix.join("images", path.basename(folder), file);
+      const relPath = path.posix.join("images", folderId, file);
       images.push({
+        id: folderId,
         src: encodeURI(`/${relPath}`),
         alt: i === 0 ? `${meta.name} — ${meta.tag}` : `${meta.name} — additional photo ${i + 1}`,
         name: meta.name,
@@ -126,6 +141,7 @@ function scanProjectGallery(): GalleryImage[] {
         .sort((a, b) => a.localeCompare(b, "en", { numeric: true }));
       files.forEach((file) => {
         images.push({
+          id: entry.name,
           src: encodeURI(`/images/${entry.name}/${file}`),
           alt: entry.name,
           name: entry.name,

@@ -28,7 +28,7 @@ export function ClientManagementTab() {
         )}
       </div>
       <div style={{ fontSize: 12.5, color: "#8A867C", marginBottom: 14, maxWidth: 640 }}>
-        Team leads request your review before anything reaches a client. Review each one — suggest updates back to the lead, or approve and send to the client — then track its status and send email reminders here.
+        Team leads request your review before anything reaches a freelance. Review each one — suggest updates back to the lead, or approve and send to the freelance — then track its status and send email reminders here.
       </div>
       {approvals.length === 0 ? (
         <div style={{ background: "#fff", border: "1px dashed #E5E2DA", borderRadius: 12, padding: "28px", textAlign: "center", color: "#8A867C", fontSize: 13 }}>

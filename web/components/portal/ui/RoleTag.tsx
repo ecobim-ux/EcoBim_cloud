@@ -1,4 +1,4 @@
-const ROLE_CFG: Record<string, { l: string; bg: string }> = {
+export const ROLE_CFG: Record<string, { l: string; bg: string }> = {
   admin: { l: "A", bg: "#171717" },
   teamlead: { l: "T", bg: "#3A6B47" },
   employee: { l: "E", bg: "#3B9EFF" },

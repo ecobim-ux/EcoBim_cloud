@@ -2,6 +2,20 @@ import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
+import { z } from "zod";
+import { withErrorLogging } from "@/lib/server/api-error";
+import { checkRateLimit } from "@/lib/server/rate-limit";
+import { parseBody, requiredString } from "@/lib/server/validate";
+
+const ScheduleMeetingSchema = z.object({
+  title: requiredString("A title is required.", 200),
+  date: requiredString("A date is required."),
+  time: z.string().trim().optional(),
+  duration: z.string().optional(),
+  joinUrl: z.string().trim().max(500).optional(),
+  note: z.string().trim().max(2000).optional(),
+  attendeeLoginIds: z.array(z.string()).optional(),
+});
 
 /** Parses "30 min" / "1 hr" / "45 min" -> minutes. Falls back to 30. */
 function parseDurationMinutes(dur: string | undefined): number {
@@ -58,6 +72,7 @@ function formatTime(d: Date): string {
     modal — so a scheduled meeting was effectively invisible everywhere the
     instant that panel closed. */
 export async function GET() {
+  return withErrorLogging("GET /api/meetings", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -103,6 +118,7 @@ export async function GET() {
   }));
 
   return NextResponse.json({ meetings });
+  });
 }
 
 /** POST /api/meetings — any signed-in user may schedule one, matching the
@@ -111,35 +127,30 @@ export async function GET() {
     nothing ever actually read back — this is what makes a real meeting
     record queryable for the first time. */
 export async function POST(req: Request) {
+  return withErrorLogging("POST /api/meetings", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
 
-  const body = (await req.json().catch(() => null)) as {
-    title?: string;
-    date?: string;
-    time?: string;
-    duration?: string;
-    joinUrl?: string;
-    note?: string;
-    attendeeLoginIds?: string[];
-  } | null;
+  const parsed = await parseBody(req, ScheduleMeetingSchema);
+  if ("error" in parsed) return parsed.error;
+  const body = parsed.data;
 
-  const title = body?.title?.trim();
-  const date = body?.date?.trim();
-  const time = body?.time?.trim() || "10:00";
-  const attendeeLoginIds = (body?.attendeeLoginIds || []).filter((s) => typeof s === "string" && s.trim());
-  if (!title || !date) {
-    return NextResponse.json({ error: "A title and date are required." }, { status: 400 });
-  }
+  const title = body.title;
+  const date = body.date;
+  const time = body.time?.trim() || "10:00";
+  const attendeeLoginIds = (body.attendeeLoginIds || []).filter((s) => typeof s === "string" && s.trim());
 
   const startsAt = new Date(`${date}T${time}:00`);
   if (Number.isNaN(startsAt.getTime())) {
     return NextResponse.json({ error: "Invalid date or time." }, { status: 400 });
   }
-  const durationMinutes = Math.min(480, Math.max(5, parseDurationMinutes(body?.duration)));
+  const durationMinutes = Math.min(480, Math.max(5, parseDurationMinutes(body.duration)));
 
   const result = await withOrgContext(ECOBIM_ORG_ID, session.userAccountId, async (sql) => {
+    const limit = await checkRateLimit(sql, session.userAccountId, "SCHEDULE_MEETING", { windowMinutes: 10, maxAttempts: 10 });
+    if (limit) return limit;
+
     const attendeeParties = attendeeLoginIds.length
       ? await sql<{ party_id: string }[]>`
           select party_id from iam.user_account where login_id in ${sql(attendeeLoginIds)} and deleted_at is null
@@ -154,7 +165,7 @@ export async function POST(req: Request) {
     const code = "MTG-" + Date.now().toString().slice(-6);
     const meetingRows = await sql<{ id: string }[]>`
       insert into comms.meeting (organization_id, code, title, starts_at, duration_minutes, provider, join_url, organizer_party_id, project_id, note, created_by, updated_by)
-      values (${ECOBIM_ORG_ID}, ${code}, ${title}, ${startsAt.toISOString()}, ${durationMinutes}, 'GOOGLE_MEET', ${body?.joinUrl ?? null}, ${session.partyId}, ${projectId}, ${body?.note?.trim() || null}, ${session.userAccountId}, ${session.userAccountId})
+      values (${ECOBIM_ORG_ID}, ${code}, ${title}, ${startsAt.toISOString()}, ${durationMinutes}, 'GOOGLE_MEET', ${body.joinUrl ?? null}, ${session.partyId}, ${projectId}, ${body.note || null}, ${session.userAccountId}, ${session.userAccountId})
       returning id
     `;
     const meetingId = meetingRows[0].id;
@@ -168,6 +179,8 @@ export async function POST(req: Request) {
 
     return { id: meetingId, code };
   });
+  if (result instanceof NextResponse) return result;
 
   return NextResponse.json(result, { status: 201 });
+  });
 }

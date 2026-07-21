@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { requireRole, requireSession } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
+import { withErrorLogging } from "@/lib/server/api-error";
 
 /** POST /api/people/:id/deactivate — admin (anyone), team lead (employees
     only). Soft-deletes the account (disables login, marks deleted_at)
     rather than hard-deleting — this schema treats every people-adjacent
     table as an audit trail. `:id` is the person's party id. */
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  return withErrorLogging("POST /api/people/:id/deactivate", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -46,4 +48,5 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: 403 });
   return NextResponse.json(result);
+  });
 }

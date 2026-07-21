@@ -5,7 +5,7 @@ import { subPill } from "@/lib/portal/style-tokens";
 import { AdminPeopleTab } from "./AdminPeopleTab";
 import { CreateClientSection } from "./CreateClientSection";
 
-const SUBS = ["People & Roles", "Create New Client"];
+const SUBS = ["People & Roles", "Create New Freelance"];
 
 export function ManagementTab() {
   const [sub, setSub] = useState("People & Roles");
@@ -19,7 +19,7 @@ export function ManagementTab() {
         ))}
       </div>
       {sub === "People & Roles" && <AdminPeopleTab />}
-      {sub === "Create New Client" && <CreateClientSection />}
+      {sub === "Create New Freelance" && <CreateClientSection />}
     </div>
   );
 }

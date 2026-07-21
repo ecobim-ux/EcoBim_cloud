@@ -2,7 +2,18 @@ import { NextResponse } from "next/server";
 import { requireRole, requireSession } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
+import { z } from "zod";
 import { PRIORITY_CODE_TO_LABEL, PRIORITY_LABEL_TO_CODE } from "@/lib/server/task-mapping";
+import { withErrorLogging } from "@/lib/server/api-error";
+import { checkRateLimit } from "@/lib/server/rate-limit";
+import { parseBody, requiredString } from "@/lib/server/validate";
+
+const RaiseIssueSchema = z.object({
+  title: requiredString("A title is required.", 200),
+  description: requiredString("A description is required.", 4000),
+  recipientLoginId: requiredString("A recipient is required."),
+  severity: z.string().optional(),
+});
 
 const STATUS_TO_BADGE: Record<string, string> = {
   PENDING: "Pending",
@@ -58,6 +69,7 @@ function shortDate(d: Date): string {
     routed to them — the old localStorage model showed every employee every
     raised issue regardless of recipient. */
 export async function GET() {
+  return withErrorLogging("GET /api/issues", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -87,6 +99,7 @@ export async function GET() {
           or i.routed_to_party_id = ${session.partyId}
         )
       order by i.raised_on desc, i.created_at desc
+      limit 500
     `;
   });
 
@@ -109,33 +122,30 @@ export async function GET() {
   }));
 
   return NextResponse.json({ issues });
+  });
 }
 
-/** POST /api/issues — admin/team lead raise a new issue, routed to a
-    specific person by login ID (not broadcast to a role). */
+/** POST /api/issues — any staff member raises a new issue, routed to a
+    specific person by login ID (not broadcast to a role). Employees use
+    this to raise an issue to their team lead; admin/teamlead can route to
+    anyone. */
 export async function POST(req: Request) {
+  return withErrorLogging("POST /api/issues", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
-  const forbidden = requireRole(session, ["admin", "teamlead"]);
+  const forbidden = requireRole(session, ["admin", "teamlead", "employee"]);
   if (forbidden) return forbidden;
 
-  const body = (await req.json().catch(() => null)) as {
-    title?: string;
-    description?: string;
-    severity?: string;
-    recipientLoginId?: string;
-  } | null;
-
-  const title = body?.title?.trim();
-  const description = body?.description?.trim();
-  const recipientLoginId = body?.recipientLoginId?.trim();
-  if (!title || !description || !recipientLoginId) {
-    return NextResponse.json({ error: "A title, description and recipient are required." }, { status: 400 });
-  }
-  const severityCode = body?.severity ? PRIORITY_LABEL_TO_CODE[body.severity] ?? "MEDIUM" : "MEDIUM";
+  const parsed = await parseBody(req, RaiseIssueSchema);
+  if ("error" in parsed) return parsed.error;
+  const { title, description, recipientLoginId } = parsed.data;
+  const severityCode = parsed.data.severity ? PRIORITY_LABEL_TO_CODE[parsed.data.severity] ?? "MEDIUM" : "MEDIUM";
 
   const result = await withOrgContext(ECOBIM_ORG_ID, session.userAccountId, async (sql) => {
+    const limit = await checkRateLimit(sql, session.userAccountId, "RAISE_ISSUE", { windowMinutes: 10, maxAttempts: 30 });
+    if (limit) return { error: "rate_limited" as const, response: limit };
+
     const recipientRows = await sql<{ party_id: string }[]>`
       select party_id from iam.user_account where login_id = ${recipientLoginId} and deleted_at is null
     `;
@@ -161,6 +171,10 @@ export async function POST(req: Request) {
     return { issueId };
   });
 
-  if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 });
+  if ("error" in result) {
+    if (result.error === "rate_limited") return result.response;
+    return NextResponse.json({ error: result.error }, { status: 400 });
+  }
   return NextResponse.json({ id: result.issueId }, { status: 201 });
+  });
 }

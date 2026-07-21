@@ -1,16 +1,21 @@
 "use client";
 
 import type { ApiApproval } from "@/app/api/approvals/route";
+import { reportFetchError } from "./fetch-error";
 
 export type { ApiApproval };
 
 export async function fetchApprovals(): Promise<ApiApproval[]> {
   try {
     const res = await fetch("/api/approvals");
-    if (!res.ok) return [];
+    if (!res.ok) {
+      reportFetchError("approvals", new Error(`HTTP ${res.status}`));
+      return [];
+    }
     const data = (await res.json()) as { approvals?: ApiApproval[] };
     return data.approvals || [];
-  } catch {
+  } catch (err) {
+    reportFetchError("approvals", err);
     return [];
   }
 }
@@ -32,12 +37,12 @@ export async function createApprovalRequest(params: { title: string; projectName
 
 export type ApprovalAction = "SUGGEST_UPDATES" | "SEND_TO_CLIENT" | "APPROVE" | "REQUEST_REVISION" | "REMIND";
 
-export async function transitionApproval(id: string, action: ApprovalAction, note?: string): Promise<{ ok: boolean; error?: string }> {
+export async function transitionApproval(id: string, action: ApprovalAction, note?: string, expectedVersion?: number): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await fetch(`/api/approvals/${id}/transition`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, note }),
+      body: JSON.stringify({ action, note, expectedVersion }),
     });
     const data = (await res.json().catch(() => ({}))) as { error?: string };
     if (!res.ok) return { ok: false, error: data.error || "Couldn't complete that action." };

@@ -5,10 +5,8 @@ import { fetchTeam, type ApiTeamMember } from "@/lib/portal/team";
 import { Avi } from "../ui/Avi";
 import { Badge } from "../ui/Badge";
 import { PBar } from "../ui/PBar";
-import { RoleTag } from "../ui/RoleTag";
 import { TableWrap, THead, TRow } from "../ui/Table";
 import { LOD } from "../ui/icons";
-import { ManageTeamSection } from "./ManageTeamSection";
 
 export function MyTeamTab() {
   const [team, setTeam] = useState<ApiTeamMember[]>([]);
@@ -20,15 +18,14 @@ export function MyTeamTab() {
 
   return (
     <div>
-      <ManageTeamSection />
       <TableWrap>
         <THead cols={["Member", "Role", "Active Task", "LOD", "Progress", "Status", "Hours"]} tpl={tpl} />
         {team.map((m) => (
           <TRow key={m.partyId} tpl={tpl}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Avi ini={m.initials} size={28} />
+              <Avi ini={m.initials} size={28} role="employee" />
               <span style={{ fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 5 }}>
-                {m.name} <RoleTag role="employee" />
+                {m.name}
                 {m.hasDelay && <span style={{ color: "#B8860B", marginLeft: 4 }}>⚠</span>}
               </span>
             </div>

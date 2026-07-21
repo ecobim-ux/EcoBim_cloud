@@ -1,16 +1,21 @@
 "use client";
 
 import type { ApiMeeting } from "@/app/api/meetings/route";
+import { reportFetchError } from "./fetch-error";
 
 export type { ApiMeeting };
 
 export async function fetchMeetings(): Promise<ApiMeeting[]> {
   try {
     const res = await fetch("/api/meetings");
-    if (!res.ok) return [];
+    if (!res.ok) {
+      reportFetchError("meetings", new Error(`HTTP ${res.status}`));
+      return [];
+    }
     const data = (await res.json()) as { meetings?: ApiMeeting[] };
     return data.meetings || [];
-  } catch {
+  } catch (err) {
+    reportFetchError("meetings", err);
     return [];
   }
 }

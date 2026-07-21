@@ -25,11 +25,11 @@ export function ClientMilestonesTab({ userName }: { userName: string }) {
   }, [loadApprovals]);
 
   const done = milestones.filter((m) => m.done);
-  const pending = approvals.filter((a) => a.stage === "Sent to Client");
+  const pending = approvals.filter((a) => a.stage === "Sent to Freelance");
 
   const respond = async (a: ApiApproval, action: "APPROVE" | "REQUEST_REVISION") => {
     setBusy((b) => ({ ...b, [a.id]: true }));
-    const result = await transitionApproval(a.id, action);
+    const result = await transitionApproval(a.id, action, undefined, a.rowVersion);
     setBusy((b) => ({ ...b, [a.id]: false }));
     if (!result.ok) {
       notify(result.error || "Couldn't record that response.", "error");
@@ -38,9 +38,9 @@ export function ClientMilestonesTab({ userName }: { userName: string }) {
     const admins = people.filter((p) => p.position === "admin").map((p) => p.loginId);
     const teamLeads = people.filter((p) => p.position === "teamlead").map((p) => p.loginId);
     const verb = action === "APPROVE" ? "approved" : "requested revisions on";
-    const title = action === "APPROVE" ? "Client approved a deliverable" : "Client requested revisions";
+    const title = action === "APPROVE" ? "Freelance approved a deliverable" : "Freelance requested revisions";
     const body = userName + " " + verb + ' "' + a.milestone + '" (' + a.proj + ").";
-    sendNotification({ recipientLoginIds: admins, title, body, tab: "Client Management" });
+    sendNotification({ recipientLoginIds: admins, title, body, tab: "Freelance Management" });
     sendNotification({ recipientLoginIds: teamLeads, title, body, tab: "Approvals" });
     notify(action === "APPROVE" ? "Approval recorded — thank you" : "Revision request sent to your team", action === "APPROVE" ? "success" : "info");
     loadApprovals();

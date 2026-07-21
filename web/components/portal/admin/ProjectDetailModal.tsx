@@ -136,7 +136,7 @@ export function ProjectDetailModal({ p, onClose }: { p: ApiProject; onClose: () 
               { l: "Team Size", v: p.teamSize + "" },
               { l: "LOD", v: p.lod || "—" },
               { l: "Lead", v: p.lead || "—" },
-              { l: "Client", v: p.client ? p.client.split(" ").slice(0, 2).join(" ") : "—" },
+              { l: "Freelance", v: p.client ? p.client.split(" ").slice(0, 2).join(" ") : "—" },
             ].map((s) => (
               <div key={s.l} style={{ textAlign: "center", padding: "10px 0" }}>
                 <div style={{ fontSize: 11, color: "#8A867C", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{s.l}</div>

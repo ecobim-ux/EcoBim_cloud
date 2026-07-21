@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { requireRole, requireSession } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
+import { withErrorLogging } from "@/lib/server/api-error";
 
 const POSITION_TO_ROLE: Record<string, string> = { admin: "ADMIN", teamlead: "TEAM_LEAD", employee: "EMPLOYEE", client: "CLIENT" };
 
 /** POST /api/people/reach — admin only. Toggles whether `from` may invite
     `to` to a meeting, upserting iam.interaction_policy. */
 export async function POST(req: Request) {
+  return withErrorLogging("POST /api/people/reach", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -36,4 +38,5 @@ export async function POST(req: Request) {
   });
 
   return NextResponse.json({ ok: true });
+  });
 }

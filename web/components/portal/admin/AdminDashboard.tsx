@@ -60,7 +60,7 @@ export function AdminDashboard({ onSwitch, initialTab, userName }: AdminDashboar
   }, [loadIssues]);
 
   const notif = useNotifications();
-  const tabs = ["All Projects", "Team Management", "Client Management", "Management", "Reports"];
+  const tabs = ["All Projects", "Team Management", "Freelance Management", "Management", "Reports"];
   const newReqCount = leads.filter((r) => r.status === "New").length;
   const openIssueCount = issues.filter((i) => !i.resolved).length;
   const displayName = userName || "—";
@@ -132,7 +132,7 @@ export function AdminDashboard({ onSwitch, initialTab, userName }: AdminDashboar
         <UpcomingMeetings />
         {tab === "All Projects" && <AllProjectsTab />}
         {tab === "Team Management" && <TeamManagementTab />}
-        {tab === "Client Management" && <ClientManagementTab />}
+        {tab === "Freelance Management" && <ClientManagementTab />}
         {tab === "Management" && <ManagementTab />}
         {tab === "Reports" && <ReportsTab />}
       </Main>

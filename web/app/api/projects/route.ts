@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole, requireSession } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
+import { withErrorLogging } from "@/lib/server/api-error";
 
 export interface ApiProjectPhase {
   code: string;
@@ -76,6 +77,7 @@ function lodRange(min: string | null, max: string | null): string | null {
     lib/portal/data.ts, which meant any project created after the demo seed
     (e.g. via the new /api/clients onboarding flow) was invisible everywhere. */
 export async function GET() {
+  return withErrorLogging("GET /api/projects", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const forbidden = requireRole(auth.session, ["admin", "teamlead", "employee"]);
@@ -129,6 +131,7 @@ export async function GET() {
       ) allphases on true
       where p.organization_id = ${ECOBIM_ORG_ID} and p.deleted_at is null
       order by p.created_at
+      limit 500
     `;
   });
 
@@ -163,4 +166,5 @@ export async function GET() {
   });
 
   return NextResponse.json({ projects });
+  });
 }

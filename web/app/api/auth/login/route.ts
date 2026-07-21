@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
 import { createSession, roleCodeToKey } from "@/lib/server/session";
+import { withErrorLogging } from "@/lib/server/api-error";
 
 interface LoginRow {
   user_account_id: string;
@@ -45,6 +46,7 @@ async function recordAttempt(loginId: string, ip: string, succeeded: boolean): P
 }
 
 export async function POST(req: Request) {
+  return withErrorLogging("POST /api/auth/login", async () => {
   const body = (await req.json().catch(() => null)) as { loginId?: string; password?: string } | null;
   const loginId = body?.loginId?.trim();
   const password = body?.password ?? "";
@@ -95,4 +97,5 @@ export async function POST(req: Request) {
   });
 
   return NextResponse.json({ role: roleCodeToKey(row.role_code), name: row.display_name });
+  });
 }

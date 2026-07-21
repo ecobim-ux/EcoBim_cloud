@@ -14,6 +14,7 @@ export function AssignedRequestsTab({ userName }: { userName: string }) {
   const [reqs, setReqs] = useState<ApiLead[]>([]);
   const [assignEmp, setAssignEmp] = useState<Record<string, string>>({});
   const [note, setNote] = useState<Record<string, string>>({});
+  const [busyIds, setBusyIds] = useState<Record<string, boolean>>({});
   const { people } = usePeople();
   const employees = people.filter((p) => p.position === "employee");
 
@@ -26,33 +27,39 @@ export function AssignedRequestsTab({ userName }: { userName: string }) {
   }, [refresh]);
 
   const assignToEmployee = async (id: string) => {
+    if (busyIds[id]) return;
     const loginId = assignEmp[id] || employees[0]?.loginId;
     const emp = employees.find((p) => p.loginId === loginId);
     if (!loginId || !emp) return;
     const req = reqs.find((r) => r.id === id);
-    const result = await delegateLeadToEmployee(id, loginId);
-    if (!result.ok) {
-      notify(result.error || "Couldn't assign that request.", "error");
-      return;
+    setBusyIds((p) => ({ ...p, [id]: true }));
+    try {
+      const result = await delegateLeadToEmployee(id, loginId);
+      if (!result.ok) {
+        notify(result.error || "Couldn't assign that request.", "error");
+        return;
+      }
+      const taskNote = (note[id] || "").trim();
+      const taskResult = await createTask({
+        title: `Review estimate: ${req?.company || "Freelance"} — ${(req?.services || []).join(", ")}`,
+        description: taskNote || undefined,
+        assigneeLoginId: emp.loginId,
+      });
+      if (!taskResult.ok) {
+        notify(taskResult.error || "Couldn't create the follow-up task.", "error");
+        return;
+      }
+      sendNotification({
+        recipientLoginIds: [emp.loginId],
+        title: "New task assigned by Team Lead",
+        body: `${userName} assigned: Review ${req?.company || "freelance"} estimate — ${(req?.services || []).join(", ")}.` + (taskNote ? ` Note: ${taskNote}` : ""),
+        tab: "My Tasks",
+      });
+      setNote((p) => ({ ...p, [id]: "" }));
+      refresh();
+    } finally {
+      setBusyIds((p) => ({ ...p, [id]: false }));
     }
-    const taskNote = (note[id] || "").trim();
-    const taskResult = await createTask({
-      title: `Review estimate: ${req?.company || "Client"} — ${(req?.services || []).join(", ")}`,
-      description: taskNote || undefined,
-      assigneeLoginId: emp.loginId,
-    });
-    if (!taskResult.ok) {
-      notify(taskResult.error || "Couldn't create the follow-up task.", "error");
-      return;
-    }
-    sendNotification({
-      recipientLoginIds: [emp.loginId],
-      title: "New task assigned by Team Lead",
-      body: `${userName} assigned: Review ${req?.company || "client"} estimate — ${(req?.services || []).join(", ")}.` + (taskNote ? ` Note: ${taskNote}` : ""),
-      tab: "My Tasks",
-    });
-    setNote((p) => ({ ...p, [id]: "" }));
-    refresh();
   };
 
   return (
@@ -99,7 +106,7 @@ export function AssignedRequestsTab({ userName }: { userName: string }) {
                       href={ML(
                         emp.email || "",
                         `Task Assignment: ${r.company} Estimate`,
-                        `Hi ${emp.name.split(" ")[0]},\n\nYou have a new task assigned by ${LEAD_NAME}.\n\nClient: ${r.name} (${r.company})\nServices: ${(r.services || []).join(", ")}\nScale: ${r.scale || "TBD"}\n\nBrief: ${r.details || "See portal for full details"}\n\nPlease log into the portal to review and action.\n\nBest,\n${LEAD_NAME}\n${LEAD_EMAIL}`,
+                        `Hi ${emp.name.split(" ")[0]},\n\nYou have a new task assigned by ${LEAD_NAME}.\n\nFreelance: ${r.name} (${r.company})\nServices: ${(r.services || []).join(", ")}\nScale: ${r.scale || "TBD"}\n\nBrief: ${r.details || "See portal for full details"}\n\nPlease log into the portal to review and action.\n\nBest,\n${LEAD_NAME}\n${LEAD_EMAIL}`,
                       )}
                       style={{ fontSize: 12, color: "#171717", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 500 }}
                     >
@@ -123,8 +130,8 @@ export function AssignedRequestsTab({ userName }: { userName: string }) {
                       </option>
                     ))}
                   </select>
-                  <Btn v="p" xs={{ fontSize: 12, padding: "8px 16px" }} onClick={() => assignToEmployee(r.id)}>
-                    Assign →
+                  <Btn v="p" xs={{ fontSize: 12, padding: "8px 16px" }} disabled={!!busyIds[r.id]} onClick={() => assignToEmployee(r.id)}>
+                    {busyIds[r.id] ? "Assigning…" : "Assign →"}
                   </Btn>
                 </div>
                 <textarea

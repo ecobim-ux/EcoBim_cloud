@@ -1,16 +1,21 @@
 "use client";
 
 import type { ApiIssue } from "@/app/api/issues/route";
+import { reportFetchError } from "./fetch-error";
 
 export type { ApiIssue };
 
 export async function fetchIssues(): Promise<ApiIssue[]> {
   try {
     const res = await fetch("/api/issues");
-    if (!res.ok) return [];
+    if (!res.ok) {
+      reportFetchError("issues", new Error(`HTTP ${res.status}`));
+      return [];
+    }
     const data = (await res.json()) as { issues?: ApiIssue[] };
     return data.issues || [];
-  } catch {
+  } catch (err) {
+    reportFetchError("issues", err);
     return [];
   }
 }

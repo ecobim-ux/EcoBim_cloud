@@ -198,7 +198,7 @@ export function EstimateRequestsTab() {
                           href={ML(
                             LEAD_EMAIL,
                             `Project Assigned: ${r.company} [${r.code}]`,
-                            `Hi ${LEAD_NAME},\n\nYou have been assigned:\n\nClient: ${r.name} (${r.company})\nRole: ${r.role}\nScale: ${r.scale || "TBD"}\nServices: ${(r.services || []).join(", ")}\n\nDetails: ${r.details || "See portal"}\n\nPlease log in and assign to an employee.\n\nRegards, Admin\n${CO_EMAIL}`,
+                            `Hi ${LEAD_NAME},\n\nYou have been assigned:\n\nFreelance: ${r.name} (${r.company})\nRole: ${r.role}\nScale: ${r.scale || "TBD"}\nServices: ${(r.services || []).join(", ")}\n\nDetails: ${r.details || "See portal"}\n\nPlease log in and assign to an employee.\n\nRegards, Admin\n${CO_EMAIL}`,
                           )}
                           style={{ fontSize: 12, color: "#171717", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 500 }}
                         >

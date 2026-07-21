@@ -9,6 +9,7 @@ import { AdminDashboard } from "./admin/AdminDashboard";
 import { ClientPortal } from "./client/ClientPortal";
 import { CustomCursor } from "./CustomCursor";
 import { PeopleProvider } from "./PeopleProvider";
+import { useIdleLogout } from "./layout/useIdleLogout";
 
 export function PortalApp() {
   const [role, setRole] = useState<string | null>(null);
@@ -45,6 +46,11 @@ export function PortalApp() {
     setRole(null);
     setNavTab(null);
   };
+
+  useIdleLogout(!!role, () => {
+    back();
+    showToast("Signed out after 30 minutes of inactivity.", "info");
+  });
 
   const skip = (
     <a className="portal-skip" href="#portal-main">

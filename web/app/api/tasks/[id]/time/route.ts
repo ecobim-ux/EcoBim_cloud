@@ -3,11 +3,13 @@ import { requireSession, resolveEmployeeId } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
 import { todayISO } from "@/lib/server/task-mapping";
+import { withErrorLogging } from "@/lib/server/api-error";
 
 /** POST /api/tasks/:id/time — log hours against a task. Only the assignee
     (or an admin) may log time on it — checked server-side, not just hidden
     in the UI, per the audit finding on client-only business rules. */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  return withErrorLogging("POST /api/tasks/:id/time", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -48,4 +50,5 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json(result);
+  });
 }

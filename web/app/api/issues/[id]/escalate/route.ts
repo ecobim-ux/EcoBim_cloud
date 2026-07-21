@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { requireRole, requireSession } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
+import { withErrorLogging } from "@/lib/server/api-error";
 
 /** POST /api/issues/:id/escalate — team lead only. Re-routes the issue to
     admin and records an ESCALATED event, instead of the old localStorage
     hack of creating a whole second issue titled "Escalated: ...". */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  return withErrorLogging("POST /api/issues/:id/escalate", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -40,4 +42,5 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json(result);
+  });
 }

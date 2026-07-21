@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 
-export const APR_FLOW = ["Lead Request", "Admin Review", "Client Sign-off", "Approved"];
-export const aprActive = (stage: string) => (stage === "Approved" ? 3 : stage === "Sent to Client" ? 2 : 1);
+export const APR_FLOW = ["Lead Request", "Admin Review", "Freelance Sign-off", "Approved"];
+export const aprActive = (stage: string) => (stage === "Approved" ? 3 : stage === "Sent to Freelance" ? 2 : 1);
 
 export function AprStepper({ stage }: { stage: string }) {
   const active = aprActive(stage);

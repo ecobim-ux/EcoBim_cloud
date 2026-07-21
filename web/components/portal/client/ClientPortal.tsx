@@ -82,12 +82,12 @@ export function ClientPortal({ onSwitch, initialTab, userName }: ClientPortalPro
         }}
         onAction={() => setShowSearch(false)}
       />
-      <MobileTopBar onMenuOpen={() => setMobOpen(true)} userName={displayName} role="Client" />
+      <MobileTopBar onMenuOpen={() => setMobOpen(true)} userName={displayName} role="Freelance" />
       <Sidebar
         tabs={tabs}
         active={tab}
         setTab={setTab}
-        role="Client"
+        role="Freelance"
         userName={displayName}
         userIni={initials(displayName)}
         onSwitch={onSwitch}

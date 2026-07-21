@@ -53,7 +53,7 @@ export function RaiseIssueModal({ userName, onClose }: RaiseIssueModalProps) {
       recipientLoginIds: [rec.loginId],
       title: "⚠ New issue raised",
       body: userName + ' raised "' + title.trim() + '" (' + sev + " priority). " + desc.trim(),
-      tab: rec.position === "admin" ? "Team Management" : rec.position === "employee" ? "RFIs" : "Issues",
+      tab: rec.position === "admin" ? "Team Management" : rec.position === "employee" ? "RFIs" : "Issues & RFIs",
     });
     setDone({ title: title.trim(), to: rec.name, sev });
     notify("Issue raised and routed", "success");

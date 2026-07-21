@@ -25,10 +25,8 @@ import { StatCard } from "../ui/StatCard";
 import { PhasePill } from "../ui/icons";
 import { ApprovalsTab } from "./ApprovalsTab";
 import { AssignedRequestsTab } from "./AssignedRequestsTab";
-import { IssuesTab } from "./IssuesTab";
-import { LeadTasksTab } from "./LeadTasksTab";
+import { IssuesRfisTab } from "./IssuesRfisTab";
 import { MyTeamTab } from "./MyTeamTab";
-import { RFIsTab } from "./RFIsTab";
 import { TeamOverviewTab } from "./TeamOverviewTab";
 
 interface TeamLeadDashboardProps {
@@ -67,7 +65,7 @@ export function TeamLeadDashboard({ onSwitch, initialTab, userName }: TeamLeadDa
   }, [loadIssues]);
 
   const notif = useNotifications();
-  const tabs = ["Overview", "My Team", "Issues", "RFIs", "Requests", "Tasks", "Approvals"];
+  const tabs = ["Overview", "My Team", "Issues & RFIs", "Requests", "Approvals"];
   const avgPct = team.length > 0 ? Math.round(team.reduce((a, t) => a + t.pct, 0) / team.length) : 0;
   const openIssueCount = issues.filter((i) => !i.resolved).length;
   const pendingApprovalCount = approvals.filter((a) => a.stage !== "Approved" && a.stage !== "Rejected").length;
@@ -134,16 +132,14 @@ export function TeamLeadDashboard({ onSwitch, initialTab, userName }: TeamLeadDa
         <div className="stat-grid">
           <StatCard label="Team Progress" value={`${avgPct}%`} sub={"avg across " + team.length + " member" + (team.length === 1 ? "" : "s")} color="var(--ink)" />
           <StatCard label="Open Issues" value={String(openIssueCount)} sub="need attention" color="var(--red)" />
-          <StatCard label="Pending Approvals" value={String(pendingApprovalCount)} sub="awaiting client" color="var(--amber)" />
+          <StatCard label="Pending Approvals" value={String(pendingApprovalCount)} sub="awaiting freelance" color="var(--amber)" />
           <StatCard label="Assigned Requests" value={String(leads.length)} sub="from admin" color="var(--green)" />
         </div>
         <UpcomingMeetings />
-        {tab === "Overview" && <TeamOverviewTab />}
+        {tab === "Overview" && <TeamOverviewTab userName={displayName} />}
         {tab === "My Team" && <MyTeamTab />}
-        {tab === "Issues" && <IssuesTab userName={displayName} />}
-        {tab === "RFIs" && <RFIsTab extraCol={true} />}
+        {tab === "Issues & RFIs" && <IssuesRfisTab userName={displayName} />}
         {tab === "Requests" && <AssignedRequestsTab userName={displayName} />}
-        {tab === "Tasks" && <LeadTasksTab userName={displayName} />}
         {tab === "Approvals" && <ApprovalsTab />}
       </Main>
     </div>

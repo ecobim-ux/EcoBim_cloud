@@ -1,15 +1,24 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { requireRole, requireSession } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
+import { withErrorLogging } from "@/lib/server/api-error";
+import { parseBody, requiredString } from "@/lib/server/validate";
+
+const CreateApprovalRequestSchema = z.object({
+  title: requiredString("A title is required.", 200),
+  projectName: z.string().trim().max(200).optional(),
+  note: z.string().trim().max(2000).optional(),
+});
 
 const ACTION_LABEL: Record<string, string> = {
   REQUEST_REVIEW: "Team lead requested admin review",
   SUGGEST_UPDATES: "Admin requested updates",
-  SEND_TO_CLIENT: "Admin reviewed & sent to client",
-  APPROVE: "Client approved",
-  REQUEST_REVISION: "Client requested changes",
-  REMIND: "Reminder emailed to client",
+  SEND_TO_CLIENT: "Admin reviewed & sent to freelance",
+  APPROVE: "Freelance approved",
+  REQUEST_REVISION: "Freelance requested changes",
+  REMIND: "Reminder emailed to freelance",
 };
 
 export interface ApiApprovalHistoryEntry {
@@ -31,6 +40,7 @@ export interface ApiApproval {
   adminNote: string | null;
   lastReminder: string | null;
   history: ApiApprovalHistoryEntry[];
+  rowVersion: number;
 }
 
 interface InstanceRow {
@@ -46,6 +56,7 @@ interface InstanceRow {
   lead_note: string | null;
   admin_note: string | null;
   last_reminder: Date | null;
+  row_version: number;
 }
 
 interface ActionRow {
@@ -64,6 +75,7 @@ function shortDate(d: Date): string {
     the old client-facing "Pending Your Approval" widget was entirely
     hardcoded and never actually read the real approval state at all. */
 export async function GET() {
+  return withErrorLogging("GET /api/approvals", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -71,26 +83,48 @@ export async function GET() {
   const { instances, actions } = await withOrgContext(ECOBIM_ORG_ID, session.userAccountId, async (sql) => {
     const instances = await sql<InstanceRow[]>`
       select
-        wi.id, wi.code, wi.title, wi.opened_at,
+        wi.id, wi.code, wi.title, wi.opened_at, wi.row_version,
         p.name as project_name,
         party_org.display_name as client_name,
-        (select cp.value from party.contact_point cp where cp.party_id = party_org.id and cp.kind = 'EMAIL' and cp.is_primary and cp.deleted_at is null limit 1) as client_email,
+        client_email.value as client_email,
         st.label as stage_label,
-        (select actor.display_name from wf.workflow_action wa join party.party actor on actor.id = wa.actor_party_id where wa.instance_id = wi.id and wa.action_code = 'REQUEST_REVIEW' order by wa.occurred_at asc limit 1) as requested_by,
-        (select wa.note from wf.workflow_action wa where wa.instance_id = wi.id and wa.action_code = 'REQUEST_REVIEW' order by wa.occurred_at asc limit 1) as lead_note,
-        (select wa.note from wf.workflow_action wa where wa.instance_id = wi.id and wa.action_code = 'SUGGEST_UPDATES' order by wa.occurred_at desc limit 1) as admin_note,
-        (select wa.occurred_at from wf.workflow_action wa where wa.instance_id = wi.id and wa.action_code = 'REMIND' order by wa.occurred_at desc limit 1) as last_reminder
+        requested_party.display_name as requested_by,
+        requested_action.note as lead_note,
+        admin_action.note as admin_note,
+        remind_action.occurred_at as last_reminder
       from wf.workflow_instance wi
       join wf.workflow_stage st on st.id = wi.current_stage_id
       left join proj.project p on p.id = wi.project_id
       left join crm.client_account ca on ca.id = wi.client_account_id
       left join party.party party_org on party_org.id = ca.party_org_id
+      left join lateral (
+        select cp.value from party.contact_point cp
+        where cp.party_id = party_org.id and cp.kind = 'EMAIL' and cp.is_primary and cp.deleted_at is null
+        limit 1
+      ) client_email on true
+      left join lateral (
+        select wa.actor_party_id, wa.note from wf.workflow_action wa
+        where wa.instance_id = wi.id and wa.action_code = 'REQUEST_REVIEW'
+        order by wa.occurred_at asc limit 1
+      ) requested_action on true
+      left join party.party requested_party on requested_party.id = requested_action.actor_party_id
+      left join lateral (
+        select wa.note from wf.workflow_action wa
+        where wa.instance_id = wi.id and wa.action_code = 'SUGGEST_UPDATES'
+        order by wa.occurred_at desc limit 1
+      ) admin_action on true
+      left join lateral (
+        select wa.occurred_at from wf.workflow_action wa
+        where wa.instance_id = wi.id and wa.action_code = 'REMIND'
+        order by wa.occurred_at desc limit 1
+      ) remind_action on true
       where wi.organization_id = ${ECOBIM_ORG_ID} and wi.deleted_at is null
         and (
           ${session.role === "admin" || session.role === "teamlead"}
           or ca.primary_contact_party_id = ${session.partyId}
         )
       order by wi.opened_at desc
+      limit 500
     `;
     const ids = instances.map((i) => i.id);
     const actions = ids.length
@@ -125,25 +159,25 @@ export async function GET() {
     adminNote: r.admin_note,
     lastReminder: r.last_reminder ? shortDate(r.last_reminder) : null,
     history: historyByInstance.get(r.id) ?? [],
+    rowVersion: r.row_version,
   }));
 
   return NextResponse.json({ approvals });
+  });
 }
 
 /** POST /api/approvals — team lead opens a new client-approval request. */
 export async function POST(req: Request) {
+  return withErrorLogging("POST /api/approvals", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
   const forbidden = requireRole(session, ["teamlead"]);
   if (forbidden) return forbidden;
 
-  const body = (await req.json().catch(() => null)) as { title?: string; projectName?: string; note?: string } | null;
-  const title = body?.title?.trim();
-  const projectName = body?.projectName?.trim();
-  if (!title) {
-    return NextResponse.json({ error: "A title is required." }, { status: 400 });
-  }
+  const parsed = await parseBody(req, CreateApprovalRequestSchema);
+  if ("error" in parsed) return parsed.error;
+  const { title, projectName, note } = parsed.data;
 
   const result = await withOrgContext(ECOBIM_ORG_ID, session.userAccountId, async (sql) => {
     const projectRows = projectName
@@ -173,11 +207,12 @@ export async function POST(req: Request) {
     const instanceId = instanceRows[0].id;
     await sql`
       insert into wf.workflow_action (organization_id, instance_id, to_stage_id, action_code, actor_party_id, note)
-      values (${ECOBIM_ORG_ID}, ${instanceId}, ${stageId}, 'REQUEST_REVIEW', ${session.partyId}, ${body?.note?.trim() || null})
+      values (${ECOBIM_ORG_ID}, ${instanceId}, ${stageId}, 'REQUEST_REVIEW', ${session.partyId}, ${note || null})
     `;
     return { id: instanceId };
   });
 
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json(result, { status: 201 });
+  });
 }

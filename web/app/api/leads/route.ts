@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole, requireSession, resolveEmployeeId } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
+import { withErrorLogging } from "@/lib/server/api-error";
 
 const STATUS_LABEL: Record<string, string> = {
   NEW: "New",
@@ -53,6 +54,7 @@ function shortDate(d: Date): string {
 /** GET /api/leads — admin sees every estimate request. Team leads only see
     ones currently assigned to them as LEAD_OWNER. */
 export async function GET() {
+  return withErrorLogging("GET /api/leads", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -85,6 +87,7 @@ export async function GET() {
       where l.organization_id = ${ECOBIM_ORG_ID} and l.deleted_at is null
         and (${session.role === "admin"} or owner_a.assigned_to_employee_id = ${employeeId})
       order by l.created_at desc
+      limit 500
     `;
   });
 
@@ -106,4 +109,5 @@ export async function GET() {
   }));
 
   return NextResponse.json({ leads });
+  });
 }

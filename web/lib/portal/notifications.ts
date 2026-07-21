@@ -1,47 +1,61 @@
 "use client";
 
 import type { ApiNotification } from "@/app/api/notifications/route";
+import { reportFetchError } from "./fetch-error";
 
 export type { ApiNotification };
 
 export async function fetchNotifications(): Promise<ApiNotification[]> {
   try {
     const res = await fetch("/api/notifications");
-    if (!res.ok) return [];
+    if (!res.ok) {
+      reportFetchError("notifications", new Error(`HTTP ${res.status}`));
+      return [];
+    }
     const data = (await res.json()) as { notifications?: ApiNotification[] };
     return data.notifications || [];
-  } catch {
+  } catch (err) {
+    reportFetchError("notifications", err);
     return [];
   }
 }
 
 export async function markNotificationRead(id?: string): Promise<void> {
   try {
-    await fetch("/api/notifications/read", {
+    const res = await fetch("/api/notifications/read", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(id ? { id } : {}),
     });
-  } catch {
-    /* best-effort */
+    if (!res.ok) console.error(`[portal] failed to mark notification read: HTTP ${res.status}`);
+  } catch (err) {
+    console.error("[portal] failed to mark notification read:", err);
   }
 }
 
 /** Replaces the old localStorage addNotif({role,...}) — recipients are now
     named explicitly by login ID instead of broadcast to an entire role,
     which is what caused every employee to see every other employee's
-    notifications. */
-export async function sendNotification(params: { recipientLoginIds: (string | undefined | null)[]; title: string; body: string; tab?: string }): Promise<void> {
+    notifications. Failures are surfaced (not swallowed) since a silently
+    lost notification means the recipient never finds out about the action
+    that triggered it. */
+export async function sendNotification(params: { recipientLoginIds: (string | undefined | null)[]; title: string; body: string; tab?: string }): Promise<boolean> {
   const recipientLoginIds = params.recipientLoginIds.filter((s): s is string => !!s);
-  if (recipientLoginIds.length === 0) return;
+  if (recipientLoginIds.length === 0) return true;
   try {
-    await fetch("/api/notifications", {
+    const res = await fetch("/api/notifications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ recipientLoginIds, title: params.title, body: params.body, tab: params.tab }),
     });
-  } catch {
-    /* best-effort, matches previous addNotif's silent-catch behavior */
+    if (!res.ok) {
+      reportFetchError("the notification", new Error(`HTTP ${res.status}`));
+      return false;
+    }
+    return true;
+  } catch (err) {
+    reportFetchError("the notification", err);
+    return false;
   }
 }
 

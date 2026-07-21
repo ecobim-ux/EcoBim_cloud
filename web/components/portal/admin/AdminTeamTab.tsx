@@ -5,7 +5,6 @@ import { fetchTeam, type ApiTeamMember } from "@/lib/portal/team";
 import { Avi } from "../ui/Avi";
 import { Badge } from "../ui/Badge";
 import { PBar } from "../ui/PBar";
-import { RoleTag } from "../ui/RoleTag";
 import { TableWrap, THead, TRow } from "../ui/Table";
 import { EmployeeProductivityModal } from "./EmployeeProductivityModal";
 
@@ -29,10 +28,8 @@ export function AdminTeamTab() {
             title={"View " + m.name + "'s productivity"}
             style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}
           >
-            <Avi ini={m.initials} size={26} />
-            <span style={{ fontSize: 13, fontWeight: 500, color: "#171717", display: "flex", alignItems: "center", gap: 5 }}>
-              {m.name} <RoleTag role="employee" />
-            </span>
+            <Avi ini={m.initials} size={26} role="employee" />
+            <span style={{ fontSize: 13, fontWeight: 500, color: "#171717" }}>{m.name}</span>
           </button>
           <span style={{ fontSize: 12, color: "#5C594F" }}>{m.role || "—"}</span>
           <span style={{ fontSize: 12, color: "#5C594F" }}>{m.project ? (m.project.length > 18 ? m.project.slice(0, 18) + "…" : m.project) : "—"}</span>

@@ -25,7 +25,7 @@ export function LeadApprovalReqButton({ userName }: { userName: string }) {
     const result = await createApprovalRequest({
       title: milestone,
       projectName: proj?.name,
-      note: "Model set is ready — please review before it goes to the client.",
+      note: "Model set is ready — please review before it goes to the freelance.",
     });
     setBusy(false);
     if (!result.ok) {
@@ -36,14 +36,14 @@ export function LeadApprovalReqButton({ userName }: { userName: string }) {
       recipientLoginIds: [people.find((p) => p.position === "admin")?.loginId],
       title: "Approval review requested",
       body: userName + ' requested your review of "' + milestone + '"' + (proj ? " on " + proj.name : "") + " before client submission.",
-      tab: "Client Management",
+      tab: "Freelance Management",
     });
     setSent(true);
   };
 
   return (
     <Btn v="p" onClick={sent || busy ? undefined : send}>
-      {sent ? "✓ Sent to Admin for review" : "✓ Request Client Approval"}
+      {sent ? "✓ Sent to Admin for review" : "✓ Request Freelance Approval"}
     </Btn>
   );
 }

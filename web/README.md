@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EcoBIM Portal
 
-## Getting Started
+Next.js 15 (App Router) app serving both the public marketing site and the
+authenticated project portal (`/portal`), backed by Postgres via Cloudflare
+Hyperdrive. See [`../db/README.md`](../db/README.md) for the database schema.
 
-First, run the development server:
+## Getting started
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. Copy the env example files and fill in the real values (ask a teammate,
+   or find the connection string in the Cloudflare dashboard under
+   Workers & Pages > Hyperdrive):
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+   ```bash
+   cp .env.local.example .env.local
+   cp .dev.vars.example .dev.vars
+   ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+2. Install dependencies and run the dev server:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   ```bash
+   npm install
+   npm run dev
+   ```
 
-## Learn More
+   Open [http://localhost:3000](http://localhost:3000) — the marketing site
+   is at `/`, the portal at `/portal`.
 
-To learn more about Next.js, take a look at the following resources:
+## Scripts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Command | Does |
+|---|---|
+| `npm run dev` | Local dev server |
+| `npm run build` | Production build |
+| `npm run lint` | ESLint |
+| `npm run test` | Vitest (unit tests, no DB required) |
+| `npm run preview` | Builds and previews via the Cloudflare Workers runtime locally |
+| `npm run deploy` | Builds and deploys to Cloudflare Workers |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+CI (`.github/workflows/ci.yml`) runs typecheck, lint, test, and build on
+every push/PR.
 
-## Deploy on Vercel
+## Security notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **CSRF**: state-changing routes rely solely on the session cookie's
+  `sameSite: "lax"` attribute (see `lib/server/session.ts`) — there's no
+  separate CSRF token. That's a deliberate, currently-adequate choice for a
+  same-origin app with no cross-site POST surface, not an oversight; revisit
+  if that changes (e.g. a public API consumed cross-origin).
+- **Row-Level Security**: the schema defines full tenant-isolation RLS
+  policies (`db/migrations/0016`), but the app's database connection must
+  actually run as the `ecobim_app` role (not a bypassing/superuser role) for
+  those policies to take effect — verify with `select rolbypassrls from
+  pg_roles where rolname = current_user` before relying on RLS as a real
+  security boundary, not just application-layer `WHERE organization_id = …`
+  checks.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+This deploys to **Cloudflare Workers** via `@opennextjs/cloudflare`, not
+Vercel — see `wrangler.jsonc` and `scripts/patch-wrangler-hyperdrive.cjs`
+for why the Hyperdrive binding needs a build-time patch step during deploy.
+
+## Learn more
+
+- [Next.js Documentation](https://nextjs.org/docs)
+- [OpenNext Cloudflare adapter](https://opennext.js.org/cloudflare)

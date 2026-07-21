@@ -70,7 +70,7 @@ export function CreateClientSection() {
     if (leadRec) {
       sendNotification({
         recipientLoginIds: [leadRec.loginId],
-        title: "New client assigned to you",
+        title: "New freelance assigned to you",
         body: "Admin assigned you as lead for " + c.company + ". Kickoff Meet: " + meetLink,
       });
     }
@@ -89,21 +89,21 @@ export function CreateClientSection() {
       c.email,
       "Welcome to EcoBIM — " + c.company,
       "Dear " + c.name + ",\n\nWelcome aboard. " + (c.lead ? c.lead + " will be your dedicated team lead." : "") + "\n\nKickoff meeting (Google Meet): " + c.meetLink + "\n\n" +
-        (c.loginId ? "Your client portal login:\nID: " + c.loginId + "\nPassword: " + c.pass + "\n\n" : "") +
+        (c.loginId ? "Your freelance portal login:\nID: " + c.loginId + "\nPassword: " + c.pass + "\n\n" : "") +
         "Best regards,\nEcoBIM Team\n" + CO_EMAIL,
     );
   const leadMail = (c: CreatedClient) =>
     ML(
       LEAD_EMAIL,
-      "New client assigned: " + c.company,
-      "Hi " + c.lead + ",\n\nYou have been assigned as team lead for a new client:\n\nClient: " + c.name + " (" + c.company + ")\nEmail: " + c.email + "\nKickoff Meet: " + c.meetLink + "\n\nPlease reach out to schedule the kickoff.\n\nRegards, Admin\n" + CO_EMAIL,
+      "New freelance assigned: " + c.company,
+      "Hi " + c.lead + ",\n\nYou have been assigned as team lead for a new freelance:\n\nFreelance: " + c.name + " (" + c.company + ")\nEmail: " + c.email + "\nKickoff Meet: " + c.meetLink + "\n\nPlease reach out to schedule the kickoff.\n\nRegards, Admin\n" + CO_EMAIL,
     );
 
   return (
     <div style={cardS}>
-      <div style={secTitle}>Create a new client</div>
+      <div style={secTitle}>Create a new freelance</div>
       <div style={secSub}>
-        Onboard a client, assign their team lead, and generate a kickoff Google Meet link. Add a login so they can access the client portal.
+        Onboard a freelance, assign their team lead, and generate a kickoff Google Meet link. Add a login so they can access the freelance portal.
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
         <label>
@@ -116,7 +116,7 @@ export function CreateClientSection() {
         </label>
         <label>
           <span style={labS}>Email</span>
-          <input style={fldS} value={cem} onChange={(e) => setCem(e.target.value)} placeholder="client@company.com" />
+          <input style={fldS} value={cem} onChange={(e) => setCem(e.target.value)} placeholder="freelance@company.com" />
         </label>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 12, alignItems: "end" }}>
@@ -140,7 +140,7 @@ export function CreateClientSection() {
           <input style={fldS} value={cpw} onChange={(e) => setCpw(e.target.value)} placeholder="optional" />
         </label>
         <Btn v="p" onClick={busy ? undefined : createClient} xs={{ height: 38, whiteSpace: "nowrap" }}>
-          {busy ? "Creating…" : "+ Create client"}
+          {busy ? "Creating…" : "+ Create freelance"}
         </Btn>
       </div>
       {cmsg && <div style={{ marginTop: 13, fontSize: 12.5, fontWeight: 500, color: cmsg[0] === "⚠" ? "var(--red)" : "var(--green)" }}>{cmsg}</div>}
@@ -154,7 +154,7 @@ export function CreateClientSection() {
             <div style={{ fontSize: 13, fontWeight: 600, color: "#1A56C4" }}>{created.meetLink}</div>
           </div>
           <a href={clientMail(created)} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#171717", color: "#fff", borderRadius: 10, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, textDecoration: "none" }}>
-            ✉ Email client
+            ✉ Email freelance
           </a>
           <a href={leadMail(created)} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", color: "#171717", border: "1.5px solid #E5E2DA", borderRadius: 10, padding: "8px 14px", fontSize: 12.5, fontWeight: 600, textDecoration: "none" }}>
             ✉ Email lead

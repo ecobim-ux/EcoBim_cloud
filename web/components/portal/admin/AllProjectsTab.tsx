@@ -39,7 +39,7 @@ export function AllProjectsTab() {
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 13, color: "#8A867C", marginBottom: 12 }}>{p.client || "No client assigned"}</div>
+              <div style={{ fontSize: 13, color: "#8A867C", marginBottom: 12 }}>{p.client || "No freelance assigned"}</div>
               <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
                 {p.phaseCode && <PhasePill p={p.phaseCode} />}
                 {p.lod && <LOD v={p.lod} />}

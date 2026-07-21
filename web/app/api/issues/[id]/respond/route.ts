@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
+import { withErrorLogging } from "@/lib/server/api-error";
 
 /** POST /api/issues/:id/respond — anyone signed in may respond (matches
     the previous behavior); a real permission model for "who may respond to
     this specific issue" (raiser/routed-to/admin) can be tightened later. */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  return withErrorLogging("POST /api/issues/:id/respond", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -26,4 +28,5 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   });
 
   return NextResponse.json({ ok: true });
+  });
 }

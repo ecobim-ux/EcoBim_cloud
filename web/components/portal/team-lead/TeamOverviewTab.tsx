@@ -6,6 +6,7 @@ import { fetchProjects, type ApiProject } from "@/lib/portal/projects";
 import { Avi } from "../ui/Avi";
 import { Badge } from "../ui/Badge";
 import { PBar } from "../ui/PBar";
+import { TeamTasksSection } from "./TeamTasksSection";
 
 function GanttBar({ project }: { project: ApiProject | null }) {
   if (!project) {
@@ -58,7 +59,7 @@ function GanttBar({ project }: { project: ApiProject | null }) {
   );
 }
 
-export function TeamOverviewTab() {
+export function TeamOverviewTab({ userName }: { userName: string }) {
   const [team, setTeam] = useState<ApiTeamMember[]>([]);
   const [projects, setProjects] = useState<ApiProject[]>([]);
 
@@ -70,6 +71,7 @@ export function TeamOverviewTab() {
   return (
     <div>
       <GanttBar project={projects[0] ?? null} />
+      <TeamTasksSection userName={userName} />
       <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 14 }}>Team Progress</div>
       <div className="proj-grid">
         {team.map((m) => (

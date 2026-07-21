@@ -61,7 +61,7 @@ export function IssuesTab({ userName }: { userName: string }) {
         recipientLoginIds: [raiserLoginId],
         title: "Team lead responded",
         body: userName + " responded to your issue: " + respText.trim(),
-        tab: raiserRole === "employee" ? "RFIs" : "Issues",
+        tab: raiserRole === "employee" ? "RFIs" : "Issues & RFIs",
       });
     }
     notify("Response sent", "success");

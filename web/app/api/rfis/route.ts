@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/server/auth-guard";
 import { withOrgContext } from "@/lib/server/db-context";
 import { ECOBIM_ORG_ID } from "@/lib/server/org";
 import { PRIORITY_CODE_TO_LABEL } from "@/lib/server/task-mapping";
+import { withErrorLogging } from "@/lib/server/api-error";
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: "Pending",
@@ -45,6 +46,7 @@ function shortDate(d: Date): string {
     them. The old model showed the same static RFI list to every employee
     and every client regardless of who it actually concerned. */
 export async function GET() {
+  return withErrorLogging("GET /api/rfis", async () => {
   const auth = await requireSession();
   if ("error" in auth) return auth.error;
   const { session } = auth;
@@ -71,6 +73,7 @@ export async function GET() {
           or r.directed_to_party_id = ${session.partyId}
         )
       order by r.raised_on desc, r.created_at desc
+      limit 500
     `;
   });
 
@@ -87,4 +90,5 @@ export async function GET() {
   }));
 
   return NextResponse.json({ rfis });
+  });
 }
