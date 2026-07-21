@@ -18,6 +18,16 @@
 	// broke routing to the Worker entirely. Also keeping workers_dev enabled
 	// as a fallback URL that always works regardless of custom-domain state.
 	"workers_dev": true,
+	// Explicit CPU-time ceiling per invocation — bumped up from whatever the
+	// account's default is because concurrent logins were hitting Cloudflare
+	// error 1102 ("Worker exceeded resource limits"), most likely from
+	// bcrypt.hash/compare(password, 12) being CPU-heavy by design. Raising
+	// this costs nothing extra: Workers bills for actual CPU time consumed,
+	// not the configured ceiling — see load-test/README.md for how this was
+	// diagnosed and how to re-test it.
+	"limits": {
+		"cpu_ms": 50000
+	},
 	"services": [
 		{
 			// Self-reference service binding, the service name must match the worker name
